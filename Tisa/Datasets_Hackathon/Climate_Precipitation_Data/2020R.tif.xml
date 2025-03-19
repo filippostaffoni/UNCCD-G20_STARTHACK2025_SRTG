@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xml:lang="en"><Esri><CreaDate>20250126</CreaDate><CreaTime>22452100</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce><DataProperties><lineage><Process ToolSource="c:\program files (x86)\arcgis\desktop10.6\ArcToolbox\Toolboxes\Spatial Analyst Tools.tbx\ExtractByMask" Date="20250126" Time="224521">ExtractByMask E:\Assaba_data\Rainfall_data\chirps-v2.0.2020.tif Assaba E:\Assaba_data\Clip_data_assaba\Rainfall\2020R.tif</Process></lineage></DataProperties></Esri></metadata>
