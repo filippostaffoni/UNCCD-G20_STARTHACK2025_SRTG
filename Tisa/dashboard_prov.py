@@ -230,7 +230,7 @@ translations = {
          "dropdown_option_climate_change": "Changements Climatiques",
          "dropdown_option_land_cover":"Changement de Couverture Terrestre",
          "storic_data_button": "Données Historiques",
-         "anomaly_button": "Anomalie",
+         "anomalies_button": "Anomalie",
          "compare_button": "Comparer",         # <-- Nuova chiave
          "xaxis_title": "Longitude (°)",
          "yaxis_title": "Latitude (°)",
@@ -270,7 +270,7 @@ app.layout = html.Div([
         html.Hr(),
         dbc.Button("Storic Data", id="storic-data-btn", n_clicks=0, color="secondary",
                    className="mb-2", style={"width": "100%"}),
-        dbc.Button("Deforestation", id="deforestation-btn", n_clicks=0, color="secondary",
+        dbc.Button("Anomalies", id="anomalies-btn", n_clicks=0, color="secondary",
                    className="mb-2", style={"width": "100%"}),  # Aggiunta la classe "mb-2"
         dbc.Button("Compare", id="compare-btn", n_clicks=0, color="secondary",
                    style={"width": "100%", "marginBottom": "20px"}),  # Pulsante Compare
@@ -782,7 +782,7 @@ def update_language(lang):
 )
 def update_sidebar_buttons(lang):
     return (translations[lang]["storic_data_button"],
-            translations[lang]["deforestation_button"],
+            translations[lang]["anomalies_button"],
             translations[lang]["compare_button"])
 
 
