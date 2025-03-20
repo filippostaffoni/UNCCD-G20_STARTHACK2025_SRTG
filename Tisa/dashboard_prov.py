@@ -9,15 +9,14 @@ import os
 import glob
 import pandas as pd
 
+import re
+
 import dash
 import dash_bootstrap_components as dbc
 
 # Inizializza l'app con un tema Bootstrap
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
 
-
-# Inizializza l'app Dash
-# app = dash.Dash(__name__)
 
 # Directory per i diversi tipi di dati
 ADMIN_LAYERS_DIR = "./Datasets_Hackathon/Admin_layers/"
@@ -51,33 +50,12 @@ AVAILABLE_YEARS_BY_TYPE = {
 }
 
 
-# import glob
-# import os
-
-# directory = "./Datasets_Hackathon/Admin_layers"
-# shp_files = glob.glob(os.path.join(directory, "**/*.shp"), recursive=True)
-
-# ###print("File trovati:", shp_files)
-
-
-
-# Funzione per scansionare le directory e trovare gli anni disponibili
-import re
-
-import re
-
-import re
-
-import re
-
 def scan_directories_for_years():
     for data_type, directory in DATA_DIRS.items():
         abs_directory = os.path.abspath(directory)
         years = set()
 
-        #print(f"\n📂 Scansione directory: {abs_directory}")  
         if not os.path.exists(abs_directory):
-            #print(f"❌ ERRORE: La directory {abs_directory} non esiste!")
             continue  
 
         shp_files = glob.glob(os.path.join(abs_directory, "**/*.shp"), recursive=True)
@@ -187,50 +165,64 @@ default_years = get_years_for_map_type(default_map_type)
 default_year = default_years[-1] if default_years else None  # Usa l'anno più recente come default
 
 # Layout dell'app
-app.layout = html.Div([
-    html.H1("Dashboard Dati Geografici Mauritania", style={'textAlign': 'center'}),
-    
-    # Menu a tendina
-    html.Div([
-        # Menu per tipo di mappa
-        html.Div([
-            html.Label("Seleziona tipo di dati:"),
-            dcc.Dropdown(
-                id='map-type-dropdown',
-                options=map_types,
-                value=default_map_type,
-                clearable=False
-            ),
-        ], style={'width': '48%', 'display': 'inline-block'}),
-        
-        # Menu per anno
-        html.Div([
-            html.Label("Seleziona anno:"),
-            dcc.Dropdown(
-                id='year-dropdown',
-                # Le opzioni verranno aggiornate dinamicamente
-                options=[{"label": str(year), "value": year} for year in default_years] if default_years else [],
-                value=default_year,
-                clearable=False,
-                disabled=not default_years
-            ),
-        ], style={'width': '48%', 'display': 'inline-block', 'float': 'right'}),
-    ], style={'padding': '20px'}),
-    
-    # Mappa centrale
-    html.Div([
-        dcc.Graph(
-            id='main-map',
-            style={'height': '70vh'}  # 70% dell'altezza della viewport
-        )
-    ], style={'padding': '10px'}),
-    
-    # Informazioni sulla mappa
-    html.Div([
-        html.H4("Informazioni", style={'marginBottom': '10px'}),
-        html.Div(id='map-info')
-    ], style={'padding': '20px'})
-])
+app.layout = dbc.Container([
+    dbc.Row([
+        dbc.Col(html.H1("Dashboard Dati Geografici Mauritania", className="text-center text-primary mb-4"), width=12)
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    html.Label("Seleziona tipo di dati:", className="fw-bold"),
+                    dcc.Dropdown(
+                        id='map-type-dropdown',
+                        options=map_types,
+                        value=default_map_type,
+                        clearable=False
+                    ),
+                ])
+            ], className="shadow-sm p-3"),
+        ], width=6),
+
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    html.Label("Seleziona anno:", className="fw-bold"),
+                    dcc.Dropdown(
+                        id='year-dropdown',
+                        options=[{"label": str(year), "value": year} for year in default_years] if default_years else [],
+                        value=default_year,
+                        clearable=False,
+                        disabled=not default_years
+                    ),
+                ])
+            ], className="shadow-sm p-3"),
+        ], width=6),
+    ], className="mb-4"),
+
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    dcc.Graph(id='main-map', style={'height': '100%', 'width': '100%'})
+                ])
+            ], className="shadow-lg p-3", style={'max-width': '900px', 'margin': 'auto'}),
+        ], width=12)
+    ], className="mb-4"),
+
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    html.H4("Informazioni", className="text-primary"),
+                    html.Div(id='map-info')
+                ])
+            ], className="shadow-sm p-3"),
+        ], width=12)
+    ])
+], fluid=True)
+
 
 # Callback per aggiornare le opzioni dell'anno in base al tipo di mappa selezionato
 
@@ -328,12 +320,14 @@ def update_map(map_type, year):
     if year is None:
         ###print("⚠ Nessun anno selezionato, mostrando messaggio di avviso.")
         fig.update_layout(
-            mapbox_style="carto-positron",
+            mapbox_style="open-street-map",  # Prova anche "carto-darkmatter" o "stamen-toner"
             mapbox_zoom=5,
             mapbox_center={"lat": 20.5, "lon": -12.5},
-            autosize=True,  # Permette alla mappa di adattarsi allo schermo senza distorsioni
-            margin={"r": 10, "t": 50, "l": 10, "b": 10},  # Imposta i margini per evitare allungamenti
-            height=700,  # Imposta un'altezza fissa per evitare che si distorca
+            autosize=False,
+            xaxis=dict(scaleanchor="y", scaleratio=1),
+            yaxis=dict(scaleanchor="x", scaleratio=1),
+            height=600,  # Ridimensiona la mappa
+            margin={"r": 10, "t": 50, "l": 10, "b": 10},
         )
 
         return fig, html.P(f"Nessun dato disponibile per {map_type}")
@@ -348,6 +342,8 @@ def update_map(map_type, year):
             annotations=[dict(
                 text=error,
                 showarrow=False,
+                xaxis=dict(scaleanchor="y", scaleratio=1),
+                yaxis=dict(scaleanchor="x", scaleratio=1),
                 xref="paper", yref="paper",
                 x=0.5, y=0.5
             )]
@@ -426,16 +422,24 @@ def update_map(map_type, year):
         lats = np.linspace(maxy, miny, height)
 
         fig = go.Figure()
-        fig.add_trace(go.Heatmap(z=raster_data, x=lons, y=lats, colorscale="Viridis", showscale=True))
+        fig.add_trace(go.Heatmap(
+            z=raster_data,
+            x=lons,
+            y=lats,
+            colorscale="Viridis",
+            showscale=True,
+            zsmooth="best"  # Interpolazione per evitare distorsioni
+        ))
+
         fig.update_layout(
-            title=f"{map_type.replace('_', ' ').title()} - {year}",
-            autosize=True,
-            height=700,  # Altezza fissa per evitare distorsioni
-            yaxis=dict(
-                scaleanchor="x",  # Mantiene il rapporto di aspetto corretto
-                scaleratio=1,  # Assicura che non venga allungata
-            ),
-            margin={"r": 10, "t": 50, "l": 10, "b": 10}
+            mapbox_style="open-street-map",  # Prova anche "carto-darkmatter" o "stamen-toner"
+            mapbox_zoom=5,
+            mapbox_center={"lat": 20.5, "lon": -12.5},
+            autosize=False,
+            xaxis=dict(scaleanchor="y", scaleratio=1),
+            yaxis=dict(scaleanchor="x", scaleratio=1),
+            height=600,  # Ridimensiona la mappa
+            margin={"r": 10, "t": 50, "l": 10, "b": 10},
         )
 
         ###print("✅ Raster visualizzato con successo!")
