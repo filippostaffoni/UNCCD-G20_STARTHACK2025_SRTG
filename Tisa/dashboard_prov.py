@@ -335,7 +335,7 @@ app.layout = html.Div([
                 dbc.Col([
                     dbc.Card([
                         dbc.CardBody([
-                            dcc.Graph(id='main-map', style={'height': '100%', 'width': '100%'})
+                            dcc.Graph(id='main-map', style={'height': '100%', 'width': '100%'}, config={'editable': True, 'scrollZoom': True})
                         ])
                     ], className="shadow-lg p-3"),
                 ], width=6),
@@ -761,6 +761,8 @@ def update_historical_plot(clickData, map_type, current_year, language):
         raster = data
         raster_data = raster.get('data')
         transform = raster.get('transform')
+        if map_type in ["deforestation", "climate_change"]:
+            diff = raster.get('difference')
         try:
             col, row = ~transform * (lon, lat)
             col = int(round(col))
@@ -768,7 +770,10 @@ def update_historical_plot(clickData, map_type, current_year, language):
             if row < 0 or row >= raster_data.shape[0] or col < 0 or col >= raster_data.shape[1]:
                 pixel_value = np.nan
             else:
-                pixel_value = raster_data[row, col]
+                if map_type in ["deforestation", "climate_change"]:
+                    pixel_value = diff[row,col]
+                else:
+                    pixel_value = raster_data[row, col]
         except Exception as e:
             pixel_value = np.nan
         values.append(pixel_value)
