@@ -575,27 +575,46 @@ def update_map(map_type, year, language):
                                        zmin=0, zmax=1, colorbar=colorbar))
         elif map_type == "deforestation" or map_type == "climate_change":
             raster_data = data["data"]
-            co2_diff_data = data["difference"]
-            visualization_mask = np.full_like(co2_diff_data, np.nan)
-            visualization_mask[(raster_data == 1) & (co2_diff_data < 0)] = 0  
-            visualization_mask[(raster_data == 1) & (co2_diff_data > 0)] = 1  
+            diff_data = data["difference"]
+            # Nuova scala colori: valori bassi in un colore neutro che sfuma in rosso per valori alti
+            # Maschera i valori dove raster_data != 1
+                # Inizializziamo la visualizzazione con NaN (punti esclusi)
+            visualization_mask = np.full_like(diff_data, np.nan)
+
+            # Dove `raster_data == 1` e `diff < 0`, coloriamo di rosso (0)
+            visualization_mask[(raster_data == 1) & (diff_data < 0)] = 0  
+
+            # Dove `raster_data == 1` e `diff > 0`, coloriamo di verde (1)
+            visualization_mask[(raster_data == 1) & (diff_data > 0)] = 1  
+
+            # Dove `raster_data == 0`, coloriamo di grigio (0.5) ma mostriamo il valore di `diff` nel tooltip
             visualization_mask[raster_data == 0] = 0.5 
             custom_colorscale = [
                 [0.0, "red"],
                 [0.5, "lightgray"],
                 [1.0, "green"]
             ]
-            hover_text = np.array([
-                [
-                    f"{translations[language]['dropdown_option_deforestation']}: {int(raster_data[i, j]) if not np.isnan(raster_data[i, j]) else 'N/A'}<br>"
-                    f"CO₂ Diff: {co2_diff_data[i, j]:.2f}" if not np.isnan(co2_diff_data[i, j]) else "N/A"
-                    for j in range(width)
-                ] 
-                for i in range(height)
-            ])
+            if map_type == "deforestation":
+                hover_text = np.array([
+                    [
+                        f"{translations[language]['dropdown_option_deforestation']}: {int(raster_data[i, j]) if not np.isnan(raster_data[i, j]) else 'N/A'}<br>"
+                        f"CO₂ Diff: {diff_data[i, j]:.2f}" if not np.isnan(diff_data[i, j]) else "N/A"
+                        for j in range(width)
+                    ] 
+                    for i in range(height)
+                ])
+            else:
+                hover_text = np.array([
+                    [
+                        f"Precipitation anomalies: {int(raster_data[i, j]) if not np.isnan(raster_data[i, j]) else 'N/A'}<br>"
+                        f"Prec Diff: {diff_data[i, j]:.2f}" if not np.isnan(diff_data[i, j]) else "N/A"
+                        for j in range(width)
+                    ] 
+                    for i in range(height)
+                ])
             fig.add_trace(go.Heatmap(z=visualization_mask, x=lons, y=lats,
                                        colorscale=custom_colorscale, showscale=True,
-                                       hoverinfo="text", text=hover_text))
+                                       hoverinfo="text", text=hover_text, zmin=0, zmax=1))
         else:
             fig.add_trace(go.Heatmap(z=raster_data, x=lons, y=lats,
                                        colorscale="Viridis", showscale=True,
