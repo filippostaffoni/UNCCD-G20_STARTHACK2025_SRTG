@@ -64,11 +64,10 @@ def scan_directories_for_years():
 
         shp_files = glob.glob(os.path.join(abs_directory, "**/*.shp"), recursive=True)
         tif_files = glob.glob(os.path.join(abs_directory, "**/*.tif"), recursive=True)
-
         all_files = shp_files + tif_files
+
         for file_path in all_files:
             filename = os.path.basename(file_path)
-
             year_pair_match = re.findall(r'(?<!\d)(\d{4})_(\d{4})(?!\d)', filename)
             if year_pair_match:
                 start_year, end_year = int(year_pair_match[0][0]), int(year_pair_match[0][1])
@@ -76,7 +75,6 @@ def scan_directories_for_years():
                     year_pairs.add(f"{start_year}_{end_year}")
                 continue
             year_matches = re.findall(r'(?<!\d)(\d{4})(?!\d)', filename)
-
             if year_matches:
                 for year_str in year_matches:
                     try:
@@ -97,7 +95,7 @@ def scan_directories_for_years():
 
 scan_directories_for_years()
 
-# Utilizziamo la scala Viridis per tutti i dati
+# Utilizziamo la scala Viridis per tutti i dati tranne per deforestation (che verrà personalizzata)
 data_type_mapping = {
     "admin_layers": {"type": "shapefile", "colorscale": None},
     "streams_roads": {"type": "shapefile", "colorscale": None},
@@ -105,7 +103,7 @@ data_type_mapping = {
     "population_density": {"type": "geotiff", "colorscale": "Viridis"},
     "gross_primary_production": {"type": "geotiff", "colorscale": "Viridis"},
     "land_cover": {"type": "geotiff", "colorscale": "Viridis"},
-    "deforestation": {"type": "geotiff", "colorscale": "Viridis"}
+    "deforestation": {"type": "geotiff", "colorscale": "Viridis"}  # verrà sovrascritto nella callback
 }
 
 def load_available_files(data_type, year):
@@ -216,7 +214,7 @@ app.layout = dbc.Container([
     ])
 ], fluid=True)
 
-# Aggiorna il menu "Select Year"
+# Callback per aggiornare il menu "Select Year"
 @app.callback(
     [Output('year-dropdown', 'options'),
      Output('year-dropdown', 'value'),
@@ -231,7 +229,7 @@ def update_year_options(map_type):
     default_year = max(years)
     return options, default_year, False
 
-# Aggiorna il menu "Select Data Type" in base alla modalità selezionata
+# Callback per aggiornare il menu "Select Data Type" in base alla modalità selezionata
 @app.callback(
     [Output('map-type-dropdown', 'options'),
      Output('map-type-dropdown', 'value'),
@@ -368,6 +366,7 @@ def update_map(map_type, year):
         raster = data
         if raster is None:
             return fig, html.P("Errore: impossibile caricare il file GeoTIFF.")
+        
         raster_data = raster.get('data')
         bounds = raster.get('bounds', (-17.0, 16.0, -8.0, 26.0))
         minx, miny, maxx, maxy = bounds
@@ -399,6 +398,14 @@ def update_map(map_type, year):
             fig.add_trace(go.Heatmap(z=normalized_data, x=lons, y=lats,
                                        colorscale="Viridis", showscale=True,
                                        zmin=0, zmax=1, colorbar=colorbar))
+        elif map_type == "deforestation":
+            # Nuova scala colori: valori bassi in un colore neutro che sfuma in rosso per valori alti
+            custom_colorscale = [
+                [0.0, "lightgray"],               
+                [1.0, "red"]
+            ]
+            fig.add_trace(go.Heatmap(z=raster_data, x=lons, y=lats,
+                                       colorscale=custom_colorscale, showscale=True))
         else:
             fig.add_trace(go.Heatmap(z=raster_data, x=lons, y=lats,
                                        colorscale="Viridis", showscale=True))
