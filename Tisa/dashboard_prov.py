@@ -30,6 +30,7 @@ LAND_COVER_DIR = "./Datasets_Hackathon/Modis_Land_Cover_Data/"
 STREAMS_ROADS_DIR = "./Datasets_Hackathon/Streamwater_Line_Road_Network/"
 DEFORESTATION_DIR = "./Datasets_Hackathon/Deforestation/"
 CLIMATECHANGE_DIR = "./Datasets_Hackathon/ClimateChange/"
+LANDCOVERCHANGE_DIR = "./Datasets_Hackathon/land_coverage_change_over_time"
 
 # Mappa per accedere facilmente alle directory in base al tipo
 DATA_DIRS = {
@@ -40,7 +41,8 @@ DATA_DIRS = {
     "land_cover": LAND_COVER_DIR,
     "streams_roads": STREAMS_ROADS_DIR,
     "deforestation": DEFORESTATION_DIR,
-    "climate_change": CLIMATECHANGE_DIR
+    "climate_change": CLIMATECHANGE_DIR,
+    "land_cover_change": LANDCOVERCHANGE_DIR
 }
 
 # =========================================================================
@@ -54,7 +56,8 @@ AVAILABLE_YEARS_BY_TYPE = {
     "land_cover": [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023],
     "streams_roads": [],
     "deforestation": [],
-    "climate_change": []
+    "climate_change": [],
+    "land_cover_change": []
 }
 
 def scan_directories_for_years():
@@ -108,7 +111,8 @@ data_type_mapping = {
     "gross_primary_production": {"type": "geotiff", "colorscale": "Viridis"},
     "land_cover": {"type": "geotiff", "colorscale": "Viridis"},
     "deforestation": {"type": "geotiff", "colorscale": "Viridis"},  # verrà sovrascritto nella callback
-    "climate_change": {"type": "geotiff", "colorscale": "Viridis"}
+    "climate_change": {"type": "geotiff", "colorscale": "Viridis"},
+    "land_cover_change" : {"type": "geotiff", "colorscale": "Viridis"}
 }
 
 # Dizionario per le unità di misura per ciascun tipo di dato
@@ -117,7 +121,9 @@ units_mapping = {
     "population_density": "pers/km²",
     "gross_primary_production": "Kg_C/m²/yr",
     "land_cover": "",         # Modifica in base alle unità corrette o lascia vuoto se non applicabile
-    "deforestation": ""            # oppure "Stato" se i valori sono binari (0/1)
+    "deforestation": "",
+    "land_cover_change": ""
+    # oppure "Stato" se i valori sono binari (0/1)
 }
 
 def load_available_files(data_type, year):
@@ -147,7 +153,8 @@ map_types_storic = [
 ]
 map_types_deforestation = [
     {"label": "Deforestation", "value": "deforestation"},
-    {"label": "Climate Changes", "value": "climate_change"}
+    {"label": "Climate Changes", "value": "climate_change"},
+    {"label": "Land Cover Changes", "value": "land_cover_change"}
     ]
 
 def get_years_for_map_type(map_type):
