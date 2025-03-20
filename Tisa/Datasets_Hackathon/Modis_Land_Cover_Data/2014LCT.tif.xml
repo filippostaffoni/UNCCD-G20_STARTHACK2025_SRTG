@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xml:lang="en"><Esri><CreaDate>20250126</CreaDate><CreaTime>21311700</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce><DataProperties><lineage><Process ToolSource="c:\program files (x86)\arcgis\desktop10.6\ArcToolbox\Toolboxes\Spatial Analyst Tools.tbx\ExtractByMask" Date="20250126" Time="213117">ExtractByMask E:\Assaba_data\Clip_data_assaba\LCT\2014lct.tif Assaba E:\Assaba_data\Clip_data_assaba\LCT_final\2014LCT.tif</Process></lineage></DataProperties></Esri></metadata>
