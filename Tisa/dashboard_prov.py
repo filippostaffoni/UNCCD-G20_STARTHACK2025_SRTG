@@ -19,6 +19,7 @@ import warnings
 
 # Inizializza l'app con un tema Bootstrap
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
+#app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LUX])
 
 # Directory per i diversi tipi di dati
 ADMIN_LAYERS_DIR = "./Datasets_Hackathon/Admin_layers/"
@@ -106,6 +107,15 @@ data_type_mapping = {
     "deforestation": {"type": "geotiff", "colorscale": "Viridis"}  # verrà sovrascritto nella callback
 }
 
+# Dizionario per le unità di misura per ciascun tipo di dato
+units_mapping = {
+    "climate_precipitations": "mm/yr",
+    "population_density": "pers/km²",
+    "gross_primary_production": "Kg_C/m²/yr",
+    "land_cover": "",         # Modifica in base alle unità corrette o lascia vuoto se non applicabile
+    "deforestation": ""            # oppure "Stato" se i valori sono binari (0/1)
+}
+
 def load_available_files(data_type, year):
     data_dir = DATA_DIRS.get(data_type)
     if not data_dir:
@@ -143,7 +153,7 @@ default_map_type = map_types_storic[0]['value']
 default_years = get_years_for_map_type(default_map_type)
 default_year = default_years[-1] if default_years else None
 
-# Layout dell'app
+# Layout dell'app con mappa principale a sinistra e grafico storico a destra
 app.layout = dbc.Container([
     dbc.Row([
         dbc.Col(html.H1("Assaba Climatic Data", className="text-center text-primary mb-4"), width=12)
@@ -192,21 +202,29 @@ app.layout = dbc.Container([
         ], width=4),
     ], className="mb-4"),
 
+    # Riga con due colonne: mappa principale a sinistra e grafico storico a destra
     dbc.Row([
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
                     dcc.Graph(id='main-map', style={'height': '100%', 'width': '100%'})
                 ])
-            ], className="shadow-lg p-3", style={'max-width': '900px', 'margin': 'auto'}),
-        ], width=12)
+            ], className="shadow-lg p-3"),
+        ], width=6),
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    dcc.Graph(id='historical-plot', style={'height': '100%', 'width': '100%'})
+                ])
+            ], className="shadow-lg p-3"),
+        ], width=6),
     ], className="mb-4"),
 
     dbc.Row([
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H4("Informazioni", className="text-primary"),
+                    html.H4("Info", className="text-primary"),
                     html.Div(id='map-info')
                 ])
             ], className="shadow-sm p-3"),
@@ -250,23 +268,23 @@ def update_map_type_options(data_mode):
 
 def load_data(map_type, year):
     if year is None:
-        return None, f"Nessun dato disponibile per {map_type}"
+        return None, f"No data available for {map_type}"
     data_info = data_type_mapping.get(map_type)
     if not data_info:
-        return None, "Tipo di dato non supportato"
+        return None, "Data type not supported"
     shp_files, tif_files = load_available_files(map_type, year)
     if data_info["type"] == "shapefile" and shp_files:
         return load_shapefile(shp_files[0])
     elif data_info["type"] == "geotiff" and tif_files:
         return load_geotiff(tif_files[0])
-    return None, f"Nessun file trovato per {map_type} dell'anno {year}"
+    return None, f"No file found {map_type} in {year}"
 
 def load_shapefile(shp_file):
     try:
         gdf = gpd.read_file(shp_file)
         return gdf, None
     except Exception as e:
-        return None, f"Errore nel caricamento del file {os.path.basename(shp_file)}: {str(e)}"
+        return None, f"Failed loading {os.path.basename(shp_file)}: {str(e)}"
 
 def load_geotiff(tif_file):
     try:
@@ -297,18 +315,18 @@ def load_geotiff(tif_file):
 )
 def update_map(map_type, year):
     fig = go.Figure()
-    info = [html.P("⚠ Nessun dato disponibile.")]
+    info = [html.P("⚠ No data available.")]
     
     if year is None:
         fig.update_layout(
-            mapbox_style="carto-positron",
-            mapbox_zoom=5,
-            mapbox_center={"lat": 20.5, "lon": -12.5},
+            title=f"No data available for {map_type}",
+            xaxis=dict(title="Longitude (°)"),
+            yaxis=dict(title="Latitude (°)", scaleanchor="x", scaleratio=1),
             autosize=True,
-            margin={"r": 10, "t": 50, "l": 10, "b": 10},
             height=700,
+            margin={"r": 10, "t": 50, "l": 10, "b": 10}
         )
-        return fig, html.P(f"Nessun dato disponibile per {map_type}")
+        return fig, html.P(f"No data available for {map_type}")
     
     data, error = load_data(map_type, year)
     if error:
@@ -321,16 +339,16 @@ def update_map(map_type, year):
                 x=0.5, y=0.5
             )]
         )
-        return fig, html.P(f"Errore: {error}")
+        return fig, html.P(f"Error: {error}")
     
     data_info = data_type_mapping.get(map_type)
     if not data_info:
-        return fig, html.P(f"Errore: tipo di dato non supportato ({map_type})")
+        return fig, html.P(f"Error: data type not supported ({map_type})")
     
     if data_info["type"] == "shapefile":
         gdf = data
         if gdf is None or gdf.empty:
-            return fig, html.P("Errore: impossibile caricare il file shapefile.")
+            return fig, html.P("Error: impossible to load shapefile.")
         color_column = None
         potential_columns = ['admin_level', 'level', 'type', 'class', 'category']
         for col in potential_columns:
@@ -340,7 +358,7 @@ def update_map(map_type, year):
         if color_column is None:
             gdf["index_col"] = gdf.index.astype(str)
             color_column = "index_col"
-            color_title = "ID Regione"
+            color_title = "District ID"
         else:
             color_title = color_column.replace('_', ' ').title()
         fig = px.choropleth_mapbox(
@@ -356,10 +374,6 @@ def update_map(map_type, year):
             labels={color_column: color_title}
         )
         info = [
-            html.P(f"Tipo di dati: {map_type.replace('_', ' ').title()}"),
-            html.P(f"Anno: {year}"),
-            html.P(f"Numero di elementi: {len(gdf)}"),
-            html.P(f"Colonne disponibili: {', '.join(gdf.columns)}")
         ]
     
     elif data_info["type"] == "geotiff":
@@ -374,61 +388,135 @@ def update_map(map_type, year):
         lons = np.linspace(minx, maxx, width)
         lats = np.linspace(maxy, miny, height)
         fig = go.Figure()
-        if map_type == "population_density":
-            bp = [0, 1, 2, 4, 8, 15, 30, 50, 100, 200, 500, 1000]
-            normalized_ticks = np.linspace(0, 1, len(bp))
-            normalized_data = np.interp(raster_data, bp, normalized_ticks)
-            colorbar = dict(
-                tickmode="array",
-                tickvals=list(normalized_ticks),
-                ticktext=[str(v) for v in bp]
-            )
-            fig.add_trace(go.Heatmap(z=normalized_data, x=lons, y=lats,
-                                       colorscale="Viridis", showscale=True,
-                                       zmin=0, zmax=1, colorbar=colorbar))
-        elif map_type == "gross_primary_production":
+        # Imposta la colorbar con le unità di misura in base al tipo di dato
+        if map_type == "gross_primary_production":
             bp = [0, 150, 300, 450, 600, 750, 900, 1100, 1500, 4000, 60000]
             normalized_ticks = np.linspace(0, 1, len(bp))
             normalized_data = np.interp(raster_data, bp, normalized_ticks)
             colorbar = dict(
                 tickmode="array",
                 tickvals=list(normalized_ticks),
-                ticktext=[str(v) for v in bp]
+                ticktext=[str(v) for v in bp],
+                title=units_mapping.get(map_type, "")
             )
             fig.add_trace(go.Heatmap(z=normalized_data, x=lons, y=lats,
                                        colorscale="Viridis", showscale=True,
                                        zmin=0, zmax=1, colorbar=colorbar))
         elif map_type == "deforestation":
-            # Nuova scala colori: valori bassi in un colore neutro che sfuma in rosso per valori alti
             custom_colorscale = [
-                [0.0, "lightgray"],               
+                [0.0, "lightgray"],
                 [1.0, "red"]
             ]
             fig.add_trace(go.Heatmap(z=raster_data, x=lons, y=lats,
-                                       colorscale=custom_colorscale, showscale=True))
+                                       colorscale=custom_colorscale, showscale=True,
+                                       colorbar=dict(title=units_mapping.get(map_type, ""))))
         else:
             fig.add_trace(go.Heatmap(z=raster_data, x=lons, y=lats,
-                                       colorscale="Viridis", showscale=True))
+                                       colorscale="Viridis", showscale=True,
+                                       colorbar=dict(title=units_mapping.get(map_type, ""))))
         fig.update_layout(
             title=f"{map_type.replace('_', ' ').title()} - {year}",
+            xaxis=dict(title="Longitude (°)"),
+            yaxis=dict(title="Latitude (°)", scaleanchor="x", scaleratio=1),
             autosize=True,
             height=700,
-            yaxis=dict(
-                scaleanchor="x",
-                scaleratio=1,
-            ),
             margin={"r": 10, "t": 50, "l": 10, "b": 10}
         )
         info = [
-            html.P(f"Tipo di dati: {map_type.replace('_', ' ').title()}"),
-            html.P(f"Anno: {year}"),
-            html.P(f"Dimensioni raster: {raster_data.shape}"),
-            html.P(f"Valore minimo: {np.nanmin(raster_data):.2f}"),
-            html.P(f"Valore massimo: {np.nanmax(raster_data):.2f}"),
-            html.P(f"Valore medio: {np.nanmean(raster_data):.2f}")
+           html.P([
+                html.Span(f"Minimum value: {np.nanmin(raster_data):.2f}"), html.Span("  |  "),
+                html.Span(f"Maximum value: {np.nanmax(raster_data):.2f}"), html.Span("  |  "),
+                html.Span(f"Average value: {np.nanmean(raster_data):.2f}")
+                ])
+
         ]
     
     return fig, info
+
+# Callback per aggiornare il grafico storico al click sulla mappa
+@app.callback(
+    Output('historical-plot', 'figure'),
+    [Input('main-map', 'clickData'),
+     Input('map-type-dropdown', 'value'),
+     Input('year-dropdown', 'value')]
+)
+def update_historical_plot(clickData, map_type, current_year):
+    # Se non è stato fatto alcun click, mostra un messaggio istruttivo
+    if clickData is None:
+        fig = go.Figure()
+        fig.update_layout(title="Click on a pixel on the map to plot the storic graph")
+        return fig
+
+    # Funzionalità implementata per dati di tipo geotiff
+    data_info = data_type_mapping.get(map_type)
+    if data_info is None or data_info["type"] != "geotiff":
+        fig = go.Figure()
+        fig.update_layout(title="Storic graph not available for this data type")
+        return fig
+
+    # Estrae le coordinate del click (x: longitudine, y: latitudine)
+    try:
+        point = clickData['points'][0]
+        lon = point['x']
+        lat = point['y']
+    except Exception as e:
+        fig = go.Figure()
+        fig.update_layout(title="Error in clicked data")
+        return fig
+
+    # Ottiene la lista degli anni disponibili per il tipo corrente
+    years = get_years_for_map_type(map_type)
+    values = []
+    valid_years = []
+    for year in years:
+        data, error = load_data(map_type, year)
+        if error or data is None:
+            values.append(np.nan)
+            valid_years.append(year)
+            continue
+        raster = data
+        raster_data = raster.get('data')
+        transform = raster.get('transform')
+        try:
+            # Calcola gli indici del pixel usando la trasformazione inversa
+            col, row = ~transform * (lon, lat)
+            col = int(round(col))
+            row = int(round(row))
+            if row < 0 or row >= raster_data.shape[0] or col < 0 or col >= raster_data.shape[1]:
+                pixel_value = np.nan
+            else:
+                pixel_value = raster_data[row, col]
+        except Exception as e:
+            pixel_value = np.nan
+        values.append(pixel_value)
+        valid_years.append(year)
+    
+    # Crea il grafico storico
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=valid_years,
+        y=values,
+        mode='lines+markers',
+        name='Value'
+    ))
+    # Evidenzia l'anno corrente con un marker rosso
+    if current_year in valid_years:
+        index = valid_years.index(current_year)
+        fig.add_trace(go.Scatter(
+            x=[current_year],
+            y=[values[index]],
+            mode='markers',
+            marker=dict(size=12, color='red'),
+            name='Current year'
+        ))
+    fig.update_layout(
+        title=f"Historic trend of the clicked pixel ({lon:.2f}, {lat:.2f})",
+        xaxis_title="Year",
+        yaxis_title=f"Value ({units_mapping.get(map_type, '')})",
+        height=700,
+        margin={"r": 10, "t": 50, "l": 10, "b": 10}
+    )
+    return fig
 
 if __name__ == '__main__':
     app.run(debug=True)
