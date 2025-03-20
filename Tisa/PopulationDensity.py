@@ -55,7 +55,7 @@ def display_all_tifs(folder, boundaries):
     plt.show()
 
 if __name__ == '__main__':
-    folder_path = 'Datasets_Hackathon/Gridded_Population_Density_Data'
-    boundaries = [0, 5, 10, 20, 35, 50, 100, 200, 1000]
+    folder_path = 'Datasets_Hackathon/MODIS_Gross_Primary_Production_GPP'
+    boundaries = [1000, 2000, 5000, 10000]
     display_all_tifs(folder_path, boundaries)
 
