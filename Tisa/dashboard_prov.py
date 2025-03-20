@@ -167,14 +167,14 @@ default_year = default_years[-1] if default_years else None  # Usa l'anno più r
 # Layout dell'app
 app.layout = dbc.Container([
     dbc.Row([
-        dbc.Col(html.H1("Dashboard Dati Geografici Mauritania", className="text-center text-primary mb-4"), width=12)
+        dbc.Col(html.H1("Assaba Climatic Data", className="text-center text-primary mb-4"), width=12)
     ]),
 
     dbc.Row([
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.Label("Seleziona tipo di dati:", className="fw-bold"),
+                    html.Label("Select Data Type:", className="fw-bold"),
                     dcc.Dropdown(
                         id='map-type-dropdown',
                         options=map_types,
@@ -188,7 +188,7 @@ app.layout = dbc.Container([
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.Label("Seleziona anno:", className="fw-bold"),
+                    html.Label("Select Year:", className="fw-bold"),
                     dcc.Dropdown(
                         id='year-dropdown',
                         options=[{"label": str(year), "value": year} for year in default_years] if default_years else [],
@@ -389,11 +389,12 @@ def update_map(map_type, year):
             color=color_column,
             color_continuous_scale=px.colors.sequential.Viridis,
             mapbox_style="carto-positron",
-            zoom=5,
-            center={"lat": 20.5, "lon": -12.5},
+            zoom=6,  # Zoom maggiore per un focus migliore
+            center={"lat": 16.7, "lon": -11.5},  # Centra su Assaba
             opacity=0.7,
             labels={color_column: color_title}
         )
+
 
         ###print("✅ Mappa generata con successo!")
 
