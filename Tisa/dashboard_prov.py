@@ -28,6 +28,7 @@ GROSS_PRIMARY_PRODUCTION_DIR = "./Datasets_Hackathon/MODIS_Gross_Primary_Product
 LAND_COVER_DIR = "./Datasets_Hackathon/Modis_Land_Cover_Data/"
 STREAMS_ROADS_DIR = "./Datasets_Hackathon/Streamwater_Line_Road_Network/"
 DEFORESTATION_DIR = "./Datasets_Hackathon/Deforestation/"
+CLIMATECHANGE_DIR = "./Datasets_Hackathon/ClimateChange/"
 
 # Mappa per accedere facilmente alle directory in base al tipo
 DATA_DIRS = {
@@ -37,7 +38,8 @@ DATA_DIRS = {
     "gross_primary_production": GROSS_PRIMARY_PRODUCTION_DIR,
     "land_cover": LAND_COVER_DIR,
     "streams_roads": STREAMS_ROADS_DIR,
-    "deforestation": DEFORESTATION_DIR
+    "deforestation": DEFORESTATION_DIR,
+    "climate_change": CLIMATECHANGE_DIR
 }
 
 # =========================================================================
@@ -50,7 +52,8 @@ AVAILABLE_YEARS_BY_TYPE = {
     "gross_primary_production": [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023],
     "land_cover": [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023],
     "streams_roads": [],
-    "deforestation": []
+    "deforestation": [],
+    "climate_change": []
 }
 
 def scan_directories_for_years():
@@ -88,7 +91,7 @@ def scan_directories_for_years():
 
         if not years:
             years.add("N/A")
-        if data_type != "deforestation":
+        if data_type != "deforestation" and data_type != "climate_change":
             AVAILABLE_YEARS_BY_TYPE[data_type] = sorted(list(years))
         else:
             AVAILABLE_YEARS_BY_TYPE[data_type] = list(year_pairs)
@@ -103,7 +106,8 @@ data_type_mapping = {
     "population_density": {"type": "geotiff", "colorscale": "Viridis"},
     "gross_primary_production": {"type": "geotiff", "colorscale": "Viridis"},
     "land_cover": {"type": "geotiff", "colorscale": "Viridis"},
-    "deforestation": {"type": "geotiff", "colorscale": "Viridis"}  # verrà sovrascritto nella callback
+    "deforestation": {"type": "geotiff", "colorscale": "Viridis"},  # verrà sovrascritto nella callback
+    "climate_change": {"type": "geotiff", "colorscale": "Viridis"}
 }
 
 def load_available_files(data_type, year):
@@ -131,7 +135,10 @@ map_types_storic = [
     {"label": "Land Cover", "value": "land_cover"},
     {"label": "Streams and Roads", "value": "streams_roads"}
 ]
-map_types_deforestation = [{"label": "Deforestation", "value": "deforestation"}]
+map_types_deforestation = [
+    {"label": "Deforestation", "value": "deforestation"},
+    {"label": "Climate Changes", "value": "climate_change"}
+    ]
 
 def get_years_for_map_type(map_type):
     years = AVAILABLE_YEARS_BY_TYPE.get(map_type, [])
@@ -245,7 +252,7 @@ def update_map_type_options(data_mode):
     else:  # data_mode == 'deforestation'
         options = map_types_deforestation
         default = "deforestation"
-        disabled = True
+        disabled = False
         return options, default, disabled
 
 def load_data(map_type, year):
@@ -272,15 +279,19 @@ def load_geotiff(tif_file):
     try:
         with rasterio.open(tif_file) as src:
             raster_data = src.read(1).astype('float32')
-            if "deforestation" in os.path.basename(tif_file).lower():
+            if "deforestation" in os.path.basename(tif_file).lower() or "climatechange" in os.path.basename(tif_file).lower():
+                difference_data = src.read(2).astype('float32') if src.count > 1 else np.full(raster_data.shape, np.nan)
                 print(f"🔍 Rilevato file di deforestazione: {tif_file}. Escludendo valori 255...")
-                raster_data[raster_data == 255] = np.nan 
+                raster_data[raster_data == -1] = np.nan 
                 raster_data = np.flipud(raster_data)
+                difference_data = np.flipud(difference_data)
             if src.nodata is not None:
                 raster_data = raster_data.astype('float32')
                 raster_data[raster_data == src.nodata] = np.nan
+                difference_data[difference_data == src.nodata] = np.nan
             return {
                 'data': raster_data,
+                'difference': difference_data,
                 'bounds': src.bounds,
                 'crs': src.crs,
                 'transform': src.transform,
@@ -398,14 +409,39 @@ def update_map(map_type, year):
             fig.add_trace(go.Heatmap(z=normalized_data, x=lons, y=lats,
                                        colorscale="Viridis", showscale=True,
                                        zmin=0, zmax=1, colorbar=colorbar))
-        elif map_type == "deforestation":
+        elif map_type == "deforestation" or map_type == "climate_change":
+            raster_data = data["data"]
+            co2_diff_data = data["difference"]
             # Nuova scala colori: valori bassi in un colore neutro che sfuma in rosso per valori alti
+            # Maschera i valori dove raster_data != 1
+                # Inizializziamo la visualizzazione con NaN (punti esclusi)
+            visualization_mask = np.full_like(co2_diff_data, np.nan)
+
+            # Dove `raster_data == 1` e `diff < 0`, coloriamo di rosso (0)
+            visualization_mask[(raster_data == 1) & (co2_diff_data < 0)] = 0  
+
+            # Dove `raster_data == 1` e `diff > 0`, coloriamo di verde (1)
+            visualization_mask[(raster_data == 1) & (co2_diff_data > 0)] = 1  
+
+            # Dove `raster_data == 0`, coloriamo di grigio (0.5) ma mostriamo il valore di `diff` nel tooltip
+            visualization_mask[raster_data == 0] = 0.5 
+            # Definisci la scala colori: grigio per 0, rosso per negativo, verde per positivo
             custom_colorscale = [
-                [0.0, "lightgray"],               
-                [1.0, "red"]
+                [0.0, "red"],      # Diff < 0 → Rosso
+                [0.5, "lightgray"], # Valori neutri per raster_data == 0
+                [1.0, "green"]      # Diff > 0 → Verde
             ]
-            fig.add_trace(go.Heatmap(z=raster_data, x=lons, y=lats,
-                                       colorscale=custom_colorscale, showscale=True))
+            hover_text = np.array([
+                [
+                    f"Deforestation: {int(raster_data[i, j]) if not np.isnan(raster_data[i, j]) else 'N/A'}<br>"
+                    f"CO₂ Diff: {co2_diff_data[i, j]:.2f}" if not np.isnan(co2_diff_data[i, j]) else "N/A"
+                    for j in range(width)
+                ] 
+                for i in range(height)
+            ])
+            fig.add_trace(go.Heatmap(z=visualization_mask, x=lons, y=lats,
+                                       colorscale=custom_colorscale, showscale=True,
+                                       hoverinfo="text", text=hover_text))
         else:
             fig.add_trace(go.Heatmap(z=raster_data, x=lons, y=lats,
                                        colorscale="Viridis", showscale=True))
