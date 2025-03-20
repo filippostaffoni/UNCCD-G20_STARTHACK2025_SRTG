@@ -21,7 +21,9 @@ import warnings
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
 #app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LUX])
 
-# Directory per i diversi tipi di dati
+# ====================================================
+# Directory per i diversi tipi di dati e configurazioni
+# ====================================================
 ADMIN_LAYERS_DIR = "./Datasets_Hackathon/Admin_layers/"
 CLIMATE_PRECIPITATIONS_DIR = "./Datasets_Hackathon/Climate_Precipitation_Data/"
 POPULATION_DENSITY_DIR = "./Datasets_Hackathon/Gridded_Population_Density_Data/"
@@ -32,7 +34,6 @@ DEFORESTATION_DIR = "./Datasets_Hackathon/Deforestation/"
 CLIMATECHANGE_DIR = "./Datasets_Hackathon/ClimateChange/"
 LANDCOVERCHANGE_DIR = "./Datasets_Hackathon/land_coverage_change_over_time"
 
-# Mappa per accedere facilmente alle directory in base al tipo
 DATA_DIRS = {
     "admin_layers": ADMIN_LAYERS_DIR,
     "climate_precipitations": CLIMATE_PRECIPITATIONS_DIR,
@@ -45,9 +46,9 @@ DATA_DIRS = {
     "land_cover_change": LANDCOVERCHANGE_DIR
 }
 
-# =========================================================================
-# CONFIGURAZIONE DEGLI ANNI PER OGNI TIPO DI MAPPA
-# =========================================================================
+# ====================================================
+# Configurazione degli anni per ciascun tipo di mappa
+# ====================================================
 AVAILABLE_YEARS_BY_TYPE = {
     "admin_layers": [],
     "climate_precipitations": [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023],
@@ -95,14 +96,16 @@ def scan_directories_for_years():
 
         if not years:
             years.add("N/A")
-        if data_type != "deforestation" and data_type != "climate_change":
+        if data_type not in ["deforestation", "climate_change"]:
             AVAILABLE_YEARS_BY_TYPE[data_type] = sorted(list(years))
         else:
             AVAILABLE_YEARS_BY_TYPE[data_type] = list(year_pairs)
 
 scan_directories_for_years()
 
-# Utilizziamo la scala Viridis per tutti i dati tranne per deforestation (che verrà personalizzata)
+# ====================================================
+# Mapping dei tipi di dati e delle unità di misura
+# ====================================================
 data_type_mapping = {
     "admin_layers": {"type": "shapefile", "colorscale": None},
     "streams_roads": {"type": "shapefile", "colorscale": None},
@@ -115,7 +118,6 @@ data_type_mapping = {
     "land_cover_change" : {"type": "geotiff", "colorscale": "Viridis"}
 }
 
-# Dizionario per le unità di misura per ciascun tipo di dato
 units_mapping = {
     "climate_precipitations": "mm/yr",
     "population_density": "pers/km²",
@@ -142,7 +144,9 @@ def load_available_files(data_type, year):
     tif_files_filtered = [f for f in tif_files if year_str in os.path.basename(f)]
     return shp_files_filtered, tif_files_filtered
 
-# Opzioni per il menu "Select Data Type"
+# ====================================================
+# Opzioni per "Select Data Type"
+# ====================================================
 map_types_storic = [
     {"label": "Admin Layers", "value": "admin_layers"},
     {"label": "Climate Precipitations", "value": "climate_precipitations"},
@@ -167,93 +171,202 @@ default_map_type = map_types_storic[0]['value']
 default_years = get_years_for_map_type(default_map_type)
 default_year = default_years[-1] if default_years else None
 
-# Layout dell'app con mappa principale a sinistra e grafico storico a destra
-app.layout = dbc.Container([
-    dbc.Row([
-        dbc.Col(html.H1("Assaba Climatic Data", className="text-center text-primary mb-4"), width=12)
-    ]),
+# ====================================================
+# Dizionario per le traduzioni
+# ====================================================
+translations = {
+    "en": {
+         "header": "Assaba Climatic Data",
+         "data_type_label": "Select Data Type:",
+         "year_label": "Select Year:",
+         "info_title": "Info",
+         "language_label": "Select Language:",
+         "dropdown_option_admin_layers": "Admin Layers",
+         "dropdown_option_climate_precipitations": "Climate Precipitations",
+         "dropdown_option_population_density": "Population Density",
+         "dropdown_option_gross_primary_production": "Gross Primary Production",
+         "dropdown_option_land_cover": "Land Cover",
+         "dropdown_option_streams_roads": "Streams and Roads",
+         "dropdown_option_deforestation": "Deforestation",
+         "dropdown_option_climate_change": "Climate Changes",
+         "storic_data_button": "Historic Data",
+         "deforestation_button": "Deforestation",
+         "xaxis_title": "Longitude (°)",
+         "yaxis_title": "Latitude (°)",
+         "no_data_available": "No data available",
+         "click_pixel_msg": "Click on a pixel on the map to plot the historic graph",
+         "storic_not_available": "Historic graph not available for this data type",
+         "error_click_data": "Error in clicked data",
+         "historic_trend": "Historic trend of the clicked pixel",
+         "year": "Year",
+         "value": "Value",
+         "current_year": "Current year",
+         "no_data_available_for": "No data available for",
+         "error": "Error",
+         "data_type_not_supported": "Data type not supported",
+         "error_loading_shapefile": "Error: impossible to load shapefile.",
+         "error_loading_geotiff": "Error: impossible to load GeoTIFF file.",
+         "district_id": "District ID",
+         "minimum_value": "Minimum value",
+         "maximum_value": "Maximum value",
+         "average_value": "Average value"
+    },
+    "fr": {
+         "header": "Données Climatiques Assaba",
+         "data_type_label": "Sélectionnez le type de données:",
+         "year_label": "Sélectionnez l'année:",
+         "info_title": "Informations",
+         "language_label": "Choisir la langue:",
+         "dropdown_option_admin_layers": "Couches Administratives",
+         "dropdown_option_climate_precipitations": "Précipitations Climatiques",
+         "dropdown_option_population_density": "Densité de Population",
+         "dropdown_option_gross_primary_production": "Production Primaire Brute",
+         "dropdown_option_land_cover": "Couverture Terrestre",
+         "dropdown_option_streams_roads": "Cours d'Eau et Routes",
+         "dropdown_option_deforestation": "Déforestation",
+         "dropdown_option_climate_change": "Changements Climatiques",
+         "storic_data_button": "Données Historiques",
+         "deforestation_button": "Déforestation",
+         "xaxis_title": "Longitude (°)",
+         "yaxis_title": "Latitude (°)",
+         "no_data_available": "Aucune donnée disponible",
+         "click_pixel_msg": "Cliquez sur un pixel sur la carte pour afficher le graphique historique",
+         "storic_not_available": "Graphique historique non disponible pour ce type de données",
+         "error_click_data": "Erreur dans les données cliquées",
+         "historic_trend": "Tendance historique du pixel cliqué",
+         "year": "Année",
+         "value": "Valeur",
+         "current_year": "Année courante",
+         "no_data_available_for": "Aucune donnée disponible pour",
+         "error": "Erreur",
+         "data_type_not_supported": "Type de données non pris en charge",
+         "error_loading_shapefile": "Erreur: impossible de charger le fichier shapefile.",
+         "error_loading_geotiff": "Erreur: impossible de charger le fichier GeoTIFF.",
+         "district_id": "ID du District",
+         "minimum_value": "Valeur minimale",
+         "maximum_value": "Valeur maximale",
+         "average_value": "Valeur moyenne"
+    }
+}
 
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Label("Select Data Mode:", className="fw-bold"),
+# ====================================================
+# Layout con Sidebar Fissa e selezione della lingua
+# ====================================================
+app.layout = html.Div([
+    # Sidebar fissa a sinistra
+    html.Div(
+        [
+            html.H2("Menu", className="display-4", style={"color": "black", "textAlign": "center"}),
+            html.Hr(),
+            dbc.Button("Storic Data", id="storic-data-btn", n_clicks=0, color="secondary",
+                       className="mb-2", style={"width": "100%"}),
+            dbc.Button("Deforestation", id="deforestation-btn", n_clicks=0, color="secondary",
+                       style={"width": "100%"}),
+            # Dropdown per la lingua posizionato in basso (spostato più in alto rispetto al precedente)
+            html.Div(
+                [
+                    html.Label("Select Language:", id="language-label", className="fw-bold", style={"marginTop": "20px"}),
                     dcc.Dropdown(
-                        id='data-mode-dropdown',
+                        id="language-dropdown",
                         options=[
-                           {"label": "Storic Data", "value": "storic_data"},
-                           {"label": "Deforestation", "value": "deforestation"}
+                            {"label": "English", "value": "en"},
+                            {"label": "French", "value": "fr"}
                         ],
-                        value="storic_data",
-                        clearable=False
-                    ),
-                ])
-            ], className="shadow-sm p-3"),
-        ], width=4),
+                        value="en",
+                        clearable=False,
+                        style={"width": "100%"}
+                    )
+                ],
+                style={"position": "absolute", "bottom": "80px", "left": "20px", "right": "20px"}
+            )
+        ],
+        style={
+            "position": "fixed",
+            "top": "0",
+            "left": "0",
+            "bottom": "0",
+            "width": "250px",
+            "padding": "20px",
+            "backgroundColor": "#dcdcdc",
+            "overflowY": "auto"
+        }
+    ),
+    # Contenuto principale (offset dalla sidebar)
+    html.Div(
+        dbc.Container([
+            dbc.Row([
+                dbc.Col(html.H1(id="header-title", children="Assaba Climatic Data", className="text-center text-primary mb-4"), width=12)
+            ]),
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.Label(id="data-type-label", children="Select Data Type:", className="fw-bold"),
+                            dcc.Dropdown(
+                                id='map-type-dropdown',
+                                clearable=False
+                            ),
+                        ])
+                    ], className="shadow-sm p-3"),
+                ], width=6),
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.Label(id="year-label", children="Select Year:", className="fw-bold"),
+                            dcc.Dropdown(
+                                id='year-dropdown',
+                                clearable=False
+                            ),
+                        ])
+                    ], className="shadow-sm p-3"),
+                ], width=6),
+            ], className="mb-4"),
+            # Riga con mappa principale e grafico storico
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            dcc.Graph(id='main-map', style={'height': '100%', 'width': '100%'})
+                        ])
+                    ], className="shadow-lg p-3"),
+                ], width=6),
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            dcc.Graph(id='historical-plot', style={'height': '100%', 'width': '100%'})
+                        ])
+                    ], className="shadow-lg p-3"),
+                ], width=6),
+            ], className="mb-4"),
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H4(id="info-title", children="Info", className="text-primary"),
+                            html.Div(id='map-info')
+                        ])
+                    ], className="shadow-sm p-3"),
+                ], width=12)
+            ])
+        ], fluid=True),
+        style={
+            "marginLeft": "270px",
+            "padding": "20px"
+        }
+    )
+])
 
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Label("Select Data Type:", className="fw-bold"),
-                    dcc.Dropdown(
-                        id='map-type-dropdown',
-                        clearable=False
-                    ),
-                ])
-            ], className="shadow-sm p-3"),
-        ], width=4),
-
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Label("Select Year:", className="fw-bold"),
-                    dcc.Dropdown(
-                        id='year-dropdown',
-                        clearable=False
-                    ),
-                ])
-            ], className="shadow-sm p-3"),
-        ], width=4),
-    ], className="mb-4"),
-
-    # Riga con due colonne: mappa principale a sinistra e grafico storico a destra
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    dcc.Graph(id='main-map', style={'height': '100%', 'width': '100%'})
-                ])
-            ], className="shadow-lg p-3"),
-        ], width=6),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    dcc.Graph(id='historical-plot', style={'height': '100%', 'width': '100%'})
-                ])
-            ], className="shadow-lg p-3"),
-        ], width=6),
-    ], className="mb-4"),
-
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.H4("Info", className="text-primary"),
-                    html.Div(id='map-info')
-                ])
-            ], className="shadow-sm p-3"),
-        ], width=12)
-    ])
-], fluid=True)
-
-# Callback per aggiornare il menu "Select Year"
+# ====================================================
+# Callback per aggiornare "Select Year" in base al Data Type
+# ====================================================
 @app.callback(
     [Output('year-dropdown', 'options'),
      Output('year-dropdown', 'value'),
      Output('year-dropdown', 'disabled')],
-    [Input('map-type-dropdown', 'value')]
+    [Input('map-type-dropdown', 'value'),
+     Input('language-dropdown', 'value')]
 )
-def update_year_options(map_type):
+def update_year_options(map_type, language):
     years = get_years_for_map_type(map_type)
     options = [{"label": str(year), "value": year} for year in years]
     if not years or "N/A" in years:
@@ -261,25 +374,52 @@ def update_year_options(map_type):
     default_year = max(years)
     return options, default_year, False
 
-# Callback per aggiornare il menu "Select Data Type" in base alla modalità selezionata
+# ====================================================
+# Callback per aggiornare il "Select Data Type" in base al pulsante premuto
+# ====================================================
 @app.callback(
     [Output('map-type-dropdown', 'options'),
      Output('map-type-dropdown', 'value'),
      Output('map-type-dropdown', 'disabled')],
-    [Input('data-mode-dropdown', 'value')]
+    [Input('storic-data-btn', 'n_clicks'),
+     Input('deforestation-btn', 'n_clicks'),
+     Input('language-dropdown', 'value')]
 )
-def update_map_type_options(data_mode):
-    if data_mode == 'storic_data':
-        options = map_types_storic
+def update_map_type_options(storic_clicks, deforestation_clicks, language):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        mode = 'storic_data'
+    else:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+        if button_id == 'deforestation-btn':
+            mode = 'deforestation'
+        else:
+            mode = 'storic_data'
+            
+    # Traduci le opzioni del menu a tendina in base alla lingua selezionata
+    if mode == 'storic_data':
+        options = [
+            {"label": translations[language]["dropdown_option_admin_layers"], "value": "admin_layers"},
+            {"label": translations[language]["dropdown_option_climate_precipitations"], "value": "climate_precipitations"},
+            {"label": translations[language]["dropdown_option_population_density"], "value": "population_density"},
+            {"label": translations[language]["dropdown_option_gross_primary_production"], "value": "gross_primary_production"},
+            {"label": translations[language]["dropdown_option_land_cover"], "value": "land_cover"},
+            {"label": translations[language]["dropdown_option_streams_roads"], "value": "streams_roads"}
+        ]
         default = options[0]["value"]
         disabled = False
-        return options, default, disabled
-    else:  # data_mode == 'deforestation'
-        options = map_types_deforestation
+    else:
+        options = [
+            {"label": translations[language]["dropdown_option_deforestation"], "value": "deforestation"},
+            {"label": translations[language]["dropdown_option_climate_change"], "value": "climate_change"}
+        ]
         default = "deforestation"
         disabled = False
-        return options, default, disabled
+    return options, default, disabled
 
+# ====================================================
+# Funzioni per caricare i dati (shapefile e geotiff)
+# ====================================================
 def load_data(map_type, year):
     if year is None:
         return None, f"No data available for {map_type}"
@@ -328,48 +468,54 @@ def load_geotiff(tif_file):
     except Exception as e:
         return None, f"Errore nel caricamento del file {os.path.basename(tif_file)}: {str(e)}"
 
+# ====================================================
+# Callback per aggiornare la mappa e le info
+# ====================================================
 @app.callback(
     [Output('main-map', 'figure'),
      Output('map-info', 'children')],
     [Input('map-type-dropdown', 'value'),
-     Input('year-dropdown', 'value')]
+     Input('year-dropdown', 'value'),
+     Input('language-dropdown', 'value')]
 )
-def update_map(map_type, year):
+def update_map(map_type, year, language):
     fig = go.Figure()
-    info = [html.P("⚠ No data available.")]
     
     if year is None:
+        title = f"{translations[language]['no_data_available_for']} {map_type}"
         fig.update_layout(
-            title=f"No data available for {map_type}",
-            xaxis=dict(title="Longitude (°)"),
-            yaxis=dict(title="Latitude (°)", scaleanchor="x", scaleratio=1),
+            title=title,
+            xaxis=dict(title=translations[language]["xaxis_title"]),
+            yaxis=dict(title=translations[language]["yaxis_title"], scaleanchor="x", scaleratio=1),
             autosize=True,
             height=700,
             margin={"r": 10, "t": 50, "l": 10, "b": 10}
         )
-        return fig, html.P(f"No data available for {map_type}")
+        return fig, html.P(title)
     
     data, error = load_data(map_type, year)
     if error:
+        error_message = f"{translations[language]['error']}: {error}"
         fig.update_layout(
-            title=f"Errore: {error}",
+            title=error_message,
             annotations=[dict(
-                text=error,
+                text=error_message,
                 showarrow=False,
                 xref="paper", yref="paper",
                 x=0.5, y=0.5
             )]
         )
-        return fig, html.P(f"Error: {error}")
+        return fig, html.P(error_message)
     
     data_info = data_type_mapping.get(map_type)
     if not data_info:
-        return fig, html.P(f"Error: data type not supported ({map_type})")
+        error_message = f"{translations[language]['error']}: {translations[language]['data_type_not_supported']} ({map_type})"
+        return fig, html.P(error_message)
     
     if data_info["type"] == "shapefile":
         gdf = data
         if gdf is None or gdf.empty:
-            return fig, html.P("Error: impossible to load shapefile.")
+            return fig, html.P(translations[language]["error_loading_shapefile"])
         color_column = None
         potential_columns = ['admin_level', 'level', 'type', 'class', 'category']
         for col in potential_columns:
@@ -379,7 +525,7 @@ def update_map(map_type, year):
         if color_column is None:
             gdf["index_col"] = gdf.index.astype(str)
             color_column = "index_col"
-            color_title = "District ID"
+            color_title = translations[language]["district_id"]
         else:
             color_title = color_column.replace('_', ' ').title()
         fig = px.choropleth_mapbox(
@@ -394,13 +540,12 @@ def update_map(map_type, year):
             opacity=0.7,
             labels={color_column: color_title}
         )
-        info = [
-        ]
+        info = []
     
     elif data_info["type"] == "geotiff":
         raster = data
         if raster is None:
-            return fig, html.P("Errore: impossibile caricare il file GeoTIFF.")
+            return fig, html.P(translations[language]["error_loading_geotiff"])
         
         raster_data = raster.get('data')
         bounds = raster.get('bounds', (-17.0, 16.0, -8.0, 26.0))
@@ -409,7 +554,19 @@ def update_map(map_type, year):
         lons = np.linspace(minx, maxx, width)
         lats = np.linspace(maxy, miny, height)
         fig = go.Figure()
-        # Imposta la colorbar con le unità di misura in base al tipo di dato
+        
+        # Ottieni il nome tradotto del tipo di mappa
+        map_type_display = next((item["label"] for item in [
+            {"label": translations[language]["dropdown_option_admin_layers"], "value": "admin_layers"},
+            {"label": translations[language]["dropdown_option_climate_precipitations"], "value": "climate_precipitations"},
+            {"label": translations[language]["dropdown_option_population_density"], "value": "population_density"},
+            {"label": translations[language]["dropdown_option_gross_primary_production"], "value": "gross_primary_production"},
+            {"label": translations[language]["dropdown_option_land_cover"], "value": "land_cover"},
+            {"label": translations[language]["dropdown_option_streams_roads"], "value": "streams_roads"},
+            {"label": translations[language]["dropdown_option_deforestation"], "value": "deforestation"},
+            {"label": translations[language]["dropdown_option_climate_change"], "value": "climate_change"}
+        ] if item["value"] == map_type), map_type.replace('_', ' ').title())
+        
         if map_type == "gross_primary_production":
             bp = [0, 150, 300, 450, 600, 750, 900, 1100, 1500, 4000, 60000]
             normalized_ticks = np.linspace(0, 1, len(bp))
@@ -439,16 +596,15 @@ def update_map(map_type, year):
 
             # Dove `raster_data == 0`, coloriamo di grigio (0.5) ma mostriamo il valore di `diff` nel tooltip
             visualization_mask[raster_data == 0] = 0.5 
-            # Definisci la scala colori: grigio per 0, rosso per negativo, verde per positivo
             custom_colorscale = [
-                [0.0, "red"],      # Diff < 0 → Rosso
-                [0.5, "lightgray"], # Valori neutri per raster_data == 0
-                [1.0, "green"]      # Diff > 0 → Verde
+                [0.0, "red"],
+                [0.5, "lightgray"],
+                [1.0, "green"]
             ]
             if map_type == "deforestation":
                 hover_text = np.array([
                     [
-                        f"Deforestation: {int(raster_data[i, j]) if not np.isnan(raster_data[i, j]) else 'N/A'}<br>"
+                        f"{translations[language]['dropdown_option_deforestation']}: {int(raster_data[i, j]) if not np.isnan(raster_data[i, j]) else 'N/A'}<br>"
                         f"CO₂ Diff: {diff_data[i, j]:.2f}" if not np.isnan(diff_data[i, j]) else "N/A"
                         for j in range(width)
                     ] 
@@ -470,57 +626,59 @@ def update_map(map_type, year):
             fig.add_trace(go.Heatmap(z=raster_data, x=lons, y=lats,
                                        colorscale="Viridis", showscale=True,
                                        colorbar=dict(title=units_mapping.get(map_type, ""))))
+        
         fig.update_layout(
-            title=f"{map_type.replace('_', ' ').title()} - {year}",
-            xaxis=dict(title="Longitude (°)"),
-            yaxis=dict(title="Latitude (°)", scaleanchor="x", scaleratio=1),
+            title=f"{map_type_display} - {year}",
+            xaxis=dict(title=translations[language]["xaxis_title"]),
+            yaxis=dict(title=translations[language]["yaxis_title"], scaleanchor="x", scaleratio=1),
             autosize=True,
             height=700,
             margin={"r": 10, "t": 50, "l": 10, "b": 10}
         )
+        # Informazioni tradotte
         info = [
            html.P([
-                html.Span(f"Minimum value: {np.nanmin(raster_data):.2f}"), html.Span("  |  "),
-                html.Span(f"Maximum value: {np.nanmax(raster_data):.2f}"), html.Span("  |  "),
-                html.Span(f"Average value: {np.nanmean(raster_data):.2f}")
-                ])
-
+                html.Span(f"{translations[language]['minimum_value']}: {np.nanmin(raster_data):.2f}"),
+                html.Span("  |  "),
+                html.Span(f"{translations[language]['maximum_value']}: {np.nanmax(raster_data):.2f}"),
+                html.Span("  |  "),
+                html.Span(f"{translations[language]['average_value']}: {np.nanmean(raster_data):.2f}")
+            ])
         ]
     
     return fig, info
 
+# ====================================================
 # Callback per aggiornare il grafico storico al click sulla mappa
+# ====================================================
 @app.callback(
     Output('historical-plot', 'figure'),
     [Input('main-map', 'clickData'),
      Input('map-type-dropdown', 'value'),
-     Input('year-dropdown', 'value')]
+     Input('year-dropdown', 'value'),
+     Input('language-dropdown', 'value')]
 )
-def update_historical_plot(clickData, map_type, current_year):
-    # Se non è stato fatto alcun click, mostra un messaggio istruttivo
+def update_historical_plot(clickData, map_type, current_year, language):
     if clickData is None:
         fig = go.Figure()
-        fig.update_layout(title="Click on a pixel on the map to plot the storic graph")
+        fig.update_layout(title=translations[language]["click_pixel_msg"])
         return fig
 
-    # Funzionalità implementata per dati di tipo geotiff
     data_info = data_type_mapping.get(map_type)
     if data_info is None or data_info["type"] != "geotiff":
         fig = go.Figure()
-        fig.update_layout(title="Storic graph not available for this data type")
+        fig.update_layout(title=translations[language]["storic_not_available"])
         return fig
 
-    # Estrae le coordinate del click (x: longitudine, y: latitudine)
     try:
         point = clickData['points'][0]
         lon = point['x']
         lat = point['y']
     except Exception as e:
         fig = go.Figure()
-        fig.update_layout(title="Error in clicked data")
+        fig.update_layout(title=translations[language]["error_click_data"])
         return fig
 
-    # Ottiene la lista degli anni disponibili per il tipo corrente
     years = get_years_for_map_type(map_type)
     values = []
     valid_years = []
@@ -534,7 +692,6 @@ def update_historical_plot(clickData, map_type, current_year):
         raster_data = raster.get('data')
         transform = raster.get('transform')
         try:
-            # Calcola gli indici del pixel usando la trasformazione inversa
             col, row = ~transform * (lon, lat)
             col = int(round(col))
             row = int(round(row))
@@ -547,15 +704,13 @@ def update_historical_plot(clickData, map_type, current_year):
         values.append(pixel_value)
         valid_years.append(year)
     
-    # Crea il grafico storico
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=valid_years,
         y=values,
         mode='lines+markers',
-        name='Value'
+        name=translations[language]["value"]
     ))
-    # Evidenzia l'anno corrente con un marker rosso
     if current_year in valid_years:
         index = valid_years.index(current_year)
         fig.add_trace(go.Scatter(
@@ -563,16 +718,42 @@ def update_historical_plot(clickData, map_type, current_year):
             y=[values[index]],
             mode='markers',
             marker=dict(size=12, color='red'),
-            name='Current year'
+            name=translations[language]["current_year"]
         ))
     fig.update_layout(
-        title=f"Historic trend of the clicked pixel ({lon:.2f}, {lat:.2f})",
-        xaxis_title="Year",
-        yaxis_title=f"Value ({units_mapping.get(map_type, '')})",
+        title=f"{translations[language]['historic_trend']} ({lon:.2f}, {lat:.2f})",
+        xaxis_title=translations[language]["year"],
+        yaxis_title=translations[language]["value"],
         height=700,
         margin={"r": 10, "t": 50, "l": 10, "b": 10}
     )
     return fig
+
+# ====================================================
+# Callback per aggiornare le scritte in base alla lingua scelta
+# ====================================================
+@app.callback(
+    [Output("header-title", "children"),
+     Output("data-type-label", "children"),
+     Output("year-label", "children"),
+     Output("info-title", "children"),
+     Output("language-label", "children")],
+    Input("language-dropdown", "value")
+)
+def update_language(lang):
+    return (translations[lang]["header"],
+            translations[lang]["data_type_label"],
+            translations[lang]["year_label"],
+            translations[lang]["info_title"],
+            translations[lang]["language_label"])
+@app.callback(
+    [Output("storic-data-btn", "children"),
+     Output("deforestation-btn", "children")],
+    Input("language-dropdown", "value")
+)
+def update_sidebar_buttons(lang):
+    return translations[lang]["storic_data_button"], translations[lang]["deforestation_button"]
+
 
 if __name__ == '__main__':
     app.run(debug=True)
