@@ -46,6 +46,12 @@ DATA_DIRS = {
     "land_cover_change": LANDCOVERCHANGE_DIR
 }
 
+# Caricamento dati prezzi Assaba
+PRICE_DATA_PATH = "./Datasets_Hackathon/confronto_barkeol_kankossa.csv"
+price_df = pd.read_csv(PRICE_DATA_PATH)
+price_df['date'] = pd.to_datetime(price_df['date'])
+
+
 # ====================================================
 # Configurazione degli anni per ciascun tipo di mappa
 # ====================================================
@@ -347,7 +353,54 @@ app.layout = html.Div([
                         ])
                     ], className="shadow-sm p-3"),
                 ], width=12)
-            ])
+            ]),
+
+            # Titolo sopra i dropdown
+            dbc.Row([
+                dbc.Col([
+                    html.H4("Price Trends", className="text-center text-primary mb-3 fw-bold")
+                ], width=12)
+            ], className="mb-2"),
+
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.Label("Select Subregion:", className="fw-bold"),
+                            dcc.Dropdown(
+                                id='region-dropdown',
+                                options=[{'label': region, 'value': region} for region in sorted(price_df['admin2'].unique())],
+                                value=price_df['admin2'].unique()[0],
+                                clearable=False
+                            ),
+                        ])
+                    ], className="shadow-sm p-3"),
+                ], width=6),
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.Label("Select Commodity:", className="fw-bold"),
+                            dcc.Dropdown(
+                                id='commodity-dropdown',
+                                options=[{'label': com, 'value': com} for com in sorted(price_df['commodity'].unique())],
+                                value=price_df['commodity'].unique()[0],
+                                clearable=False
+                            ),
+                        ])
+                    ], className="shadow-sm p-3"),
+                ], width=6),
+            ], className="mb-4"),
+
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            dcc.Graph(id='price-trend-graph', style={'height': '500px'})
+                        ])
+                    ], className="shadow-lg p-3"),
+                ], width=12)
+            ], className="mb-4"),
+
         ], fluid=True),
         style={
             "marginLeft": "270px",
@@ -728,6 +781,25 @@ def update_historical_plot(clickData, map_type, current_year, language):
         margin={"r": 10, "t": 50, "l": 10, "b": 10}
     )
     return fig
+
+# ====================================================
+# Callback per aggiornare il grafico dei prezzi
+# ====================================================
+
+@app.callback(
+    Output('price-trend-graph', 'figure'),
+    [Input('region-dropdown', 'value'),
+     Input('commodity-dropdown', 'value')]
+)
+
+def update_price_graph(selected_region, selected_commodity):
+    filtered_df = price_df[(price_df['admin2'] == selected_region) & (price_df['commodity'] == selected_commodity)]
+    fig = px.line(filtered_df, x='date', y='usdprice',
+                  title=f'Price trend of {selected_commodity} - {selected_region}',
+                  labels={'usdprice': 'Price (USD)', 'date': 'Data'})
+    fig.update_layout(autosize=True, margin={"r":10,"t":50,"l":10,"b":10})
+    return fig
+
 
 # ====================================================
 # Callback per aggiornare le scritte in base alla lingua scelta
