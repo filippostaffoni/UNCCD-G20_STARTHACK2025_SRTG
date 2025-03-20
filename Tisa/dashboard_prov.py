@@ -8,7 +8,6 @@ import numpy as np
 import os
 import glob
 import pandas as pd
-
 import re
 
 import dash
@@ -18,6 +17,9 @@ import dash_bootstrap_components as dbc
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
 
 
+# Inizializza l'app Dash
+# app = dash.Dash(__name__)
+
 # Directory per i diversi tipi di dati
 ADMIN_LAYERS_DIR = "./Datasets_Hackathon/Admin_layers/"
 CLIMATE_PRECIPITATIONS_DIR = "./Datasets_Hackathon/Climate_Precipitation_Data/"
@@ -25,6 +27,7 @@ POPULATION_DENSITY_DIR = "./Datasets_Hackathon/Gridded_Population_Density_Data/"
 GROSS_PRIMARY_PRODUCTION_DIR = "./Datasets_Hackathon/MODIS_Gross_Primary_Production_GPP/"
 LAND_COVER_DIR = "./Datasets_Hackathon/Modis_Land_Cover_Data/"
 STREAMS_ROADS_DIR = "./Datasets_Hackathon/Streamwater_Line_Road_Network/"
+DEFORESTATION_DIR = "./Datasets_Hackathon/Deforestation/"
 
 # Mappa per accedere facilmente alle directory in base al tipo
 DATA_DIRS = {
@@ -33,7 +36,8 @@ DATA_DIRS = {
     "population_density": POPULATION_DENSITY_DIR,
     "gross_primary_production": GROSS_PRIMARY_PRODUCTION_DIR,
     "land_cover": LAND_COVER_DIR,
-    "streams_roads": STREAMS_ROADS_DIR
+    "streams_roads": STREAMS_ROADS_DIR,
+    "deforestation": DEFORESTATION_DIR
 }
 
 # =========================================================================
@@ -46,16 +50,22 @@ AVAILABLE_YEARS_BY_TYPE = {
     "population_density": [2010, 2015, 2020],
     "gross_primary_production": [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023],
     "land_cover": [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023],
-    "streams_roads": []
+    "streams_roads": [],
+    "deforestation": []
 }
+
+
 
 
 def scan_directories_for_years():
     for data_type, directory in DATA_DIRS.items():
         abs_directory = os.path.abspath(directory)
         years = set()
+        year_pairs = set()
 
+        #print(f"\n📂 Scansione directory: {abs_directory}")  
         if not os.path.exists(abs_directory):
+            #print(f"❌ ERRORE: La directory {abs_directory} non esiste!")
             continue  
 
         shp_files = glob.glob(os.path.join(abs_directory, "**/*.shp"), recursive=True)
@@ -71,9 +81,14 @@ def scan_directories_for_years():
             filename = os.path.basename(file_path)
             #print(f"🟢 Analizzando file: {filename}")  # Debug
 
+            year_pair_match = re.findall(r'(?<!\d)(\d{4})_(\d{4})(?!\d)', filename)
+            if year_pair_match:
+                start_year, end_year = int(year_pair_match[0][0]), int(year_pair_match[0][1])
+                if 1900 <= start_year <= 2030 and 1900 <= end_year <= 2030:
+                    year_pairs.add(f"{start_year}_{end_year}")  # Salva la coppia di anni
+                continue  # Passa al prossimo file
             # Nuova regex: cerca 4 cifre anche se seguite da lettere o underscore
             year_matches = re.findall(r'(?<!\d)(\d{4})(?!\d)', filename)
-
 
             if year_matches:
                 for year_str in year_matches:
@@ -91,8 +106,11 @@ def scan_directories_for_years():
         if not years:
             #print(f"⚠ ATTENZIONE: Nessun anno trovato per {data_type}, usiamo 'N/A'")
             years.add("N/A")
-
-        AVAILABLE_YEARS_BY_TYPE[data_type] = sorted(list(years))
+        if data_type != "deforestation":
+            AVAILABLE_YEARS_BY_TYPE[data_type] = sorted(list(years))
+        else:
+            AVAILABLE_YEARS_BY_TYPE[data_type] = list(year_pairs)
+            
         #print(f"✅ Anni trovati per {data_type}: {AVAILABLE_YEARS_BY_TYPE[data_type]}")
 
 
@@ -107,7 +125,9 @@ data_type_mapping = {
     "climate_precipitations": {"type": "geotiff", "colorscale": "Blues"},
     "population_density": {"type": "geotiff", "colorscale": "Reds"},
     "gross_primary_production": {"type": "geotiff", "colorscale": "Greens"},
-    "land_cover": {"type": "geotiff", "colorscale": "Earth"}
+    "land_cover": {"type": "geotiff", "colorscale": "Earth"},
+    "deforestation": {"type": "geotiff", "colorscale": "Red"}
+    
 }
 
 # Funzione per caricare i file disponibili da una directory specifica
@@ -147,7 +167,8 @@ map_types = [
     {"label": "Population Density", "value": "population_density"},
     {"label": "Gross Primary Production", "value": "gross_primary_production"},
     {"label": "Land Cover", "value": "land_cover"},
-    {"label": "Streams and Roads", "value": "streams_roads"}
+    {"label": "Streams and Roads", "value": "streams_roads"},
+    {"label": "Deforestation prediction", "value": "deforestation"}
 ]
 
 # Funzione per ottenere gli anni disponibili per un tipo di mappa
@@ -165,64 +186,50 @@ default_years = get_years_for_map_type(default_map_type)
 default_year = default_years[-1] if default_years else None  # Usa l'anno più recente come default
 
 # Layout dell'app
-app.layout = dbc.Container([
-    dbc.Row([
-        dbc.Col(html.H1("Dashboard Dati Geografici Mauritania", className="text-center text-primary mb-4"), width=12)
-    ]),
-
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Label("Seleziona tipo di dati:", className="fw-bold"),
-                    dcc.Dropdown(
-                        id='map-type-dropdown',
-                        options=map_types,
-                        value=default_map_type,
-                        clearable=False
-                    ),
-                ])
-            ], className="shadow-sm p-3"),
-        ], width=6),
-
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Label("Seleziona anno:", className="fw-bold"),
-                    dcc.Dropdown(
-                        id='year-dropdown',
-                        options=[{"label": str(year), "value": year} for year in default_years] if default_years else [],
-                        value=default_year,
-                        clearable=False,
-                        disabled=not default_years
-                    ),
-                ])
-            ], className="shadow-sm p-3"),
-        ], width=6),
-    ], className="mb-4"),
-
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    dcc.Graph(id='main-map', style={'height': '100%', 'width': '100%'})
-                ])
-            ], className="shadow-lg p-3", style={'max-width': '900px', 'margin': 'auto'}),
-        ], width=12)
-    ], className="mb-4"),
-
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.H4("Informazioni", className="text-primary"),
-                    html.Div(id='map-info')
-                ])
-            ], className="shadow-sm p-3"),
-        ], width=12)
-    ])
-], fluid=True)
-
+app.layout = html.Div([
+    html.H1("Dashboard Dati Geografici Mauritania", style={'textAlign': 'center'}),
+    
+    # Menu a tendina
+    html.Div([
+        # Menu per tipo di mappa
+        html.Div([
+            html.Label("Seleziona tipo di dati:"),
+            dcc.Dropdown(
+                id='map-type-dropdown',
+                options=map_types,
+                value=default_map_type,
+                clearable=False
+            ),
+        ], style={'width': '48%', 'display': 'inline-block'}),
+        
+        # Menu per anno
+        html.Div([
+            html.Label("Seleziona anno:"),
+            dcc.Dropdown(
+                id='year-dropdown',
+                # Le opzioni verranno aggiornate dinamicamente
+                options=[{"label": str(year), "value": year} for year in default_years] if default_years else [],
+                value=default_year,
+                clearable=False,
+                disabled=not default_years
+            ),
+        ], style={'width': '48%', 'display': 'inline-block', 'float': 'right'}),
+    ], style={'padding': '20px'}),
+    
+    # Mappa centrale
+    html.Div([
+        dcc.Graph(
+            id='main-map',
+            style={'height': '70vh'}  # 70% dell'altezza della viewport
+        )
+    ], style={'padding': '10px'}),
+    
+    # Informazioni sulla mappa
+    html.Div([
+        html.H4("Informazioni", style={'marginBottom': '10px'}),
+        html.Div(id='map-info')
+    ], style={'padding': '20px'})
+])
 
 # Callback per aggiornare le opzioni dell'anno in base al tipo di mappa selezionato
 
@@ -286,7 +293,13 @@ def load_shapefile(shp_file):
 def load_geotiff(tif_file):
     try:
         with rasterio.open(tif_file) as src:
-            raster_data = src.read(1)  # Leggi il primo canale
+            raster_data = src.read(1).astype('float32')  # Leggi il primo canale
+            
+            if "deforestation" in os.path.basename(tif_file).lower():
+                print(f"🔍 Rilevato file di deforestazione: {tif_file}. Escludendo valori 255...")
+                raster_data[raster_data == 255] = np.nan 
+                raster_data = np.flipud(raster_data)
+                # Sostituisci il valore 255 con NaN
             
             # Converti valori nodata a NaN per una migliore visualizzazione
             if src.nodata is not None:
@@ -320,14 +333,12 @@ def update_map(map_type, year):
     if year is None:
         ###print("⚠ Nessun anno selezionato, mostrando messaggio di avviso.")
         fig.update_layout(
-            mapbox_style="open-street-map",  # Prova anche "carto-darkmatter" o "stamen-toner"
+            mapbox_style="carto-positron",
             mapbox_zoom=5,
             mapbox_center={"lat": 20.5, "lon": -12.5},
-            autosize=False,
-            xaxis=dict(scaleanchor="y", scaleratio=1),
-            yaxis=dict(scaleanchor="x", scaleratio=1),
-            height=600,  # Ridimensiona la mappa
-            margin={"r": 10, "t": 50, "l": 10, "b": 10},
+            autosize=True,  # Permette alla mappa di adattarsi allo schermo senza distorsioni
+            margin={"r": 10, "t": 50, "l": 10, "b": 10},  # Imposta i margini per evitare allungamenti
+            height=700,  # Imposta un'altezza fissa per evitare che si distorca
         )
 
         return fig, html.P(f"Nessun dato disponibile per {map_type}")
@@ -342,8 +353,6 @@ def update_map(map_type, year):
             annotations=[dict(
                 text=error,
                 showarrow=False,
-                xaxis=dict(scaleanchor="y", scaleratio=1),
-                yaxis=dict(scaleanchor="x", scaleratio=1),
                 xref="paper", yref="paper",
                 x=0.5, y=0.5
             )]
@@ -422,24 +431,16 @@ def update_map(map_type, year):
         lats = np.linspace(maxy, miny, height)
 
         fig = go.Figure()
-        fig.add_trace(go.Heatmap(
-            z=raster_data,
-            x=lons,
-            y=lats,
-            colorscale="Viridis",
-            showscale=True,
-            zsmooth="best"  # Interpolazione per evitare distorsioni
-        ))
-
+        fig.add_trace(go.Heatmap(z=raster_data, x=lons, y=lats, colorscale="Viridis", showscale=True))
         fig.update_layout(
-            mapbox_style="open-street-map",  # Prova anche "carto-darkmatter" o "stamen-toner"
-            mapbox_zoom=5,
-            mapbox_center={"lat": 20.5, "lon": -12.5},
-            autosize=False,
-            xaxis=dict(scaleanchor="y", scaleratio=1),
-            yaxis=dict(scaleanchor="x", scaleratio=1),
-            height=600,  # Ridimensiona la mappa
-            margin={"r": 10, "t": 50, "l": 10, "b": 10},
+            title=f"{map_type.replace('_', ' ').title()} - {year}",
+            autosize=True,
+            height=700,  # Altezza fissa per evitare distorsioni
+            yaxis=dict(
+                scaleanchor="x",  # Mantiene il rapporto di aspetto corretto
+                scaleratio=1,  # Assicura che non venga allungata
+            ),
+            margin={"r": 10, "t": 50, "l": 10, "b": 10}
         )
 
         ###print("✅ Raster visualizzato con successo!")
