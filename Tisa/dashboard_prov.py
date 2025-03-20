@@ -14,6 +14,11 @@ import re
 import dash
 import dash_bootstrap_components as dbc
 
+import warnings
+
+# Ignora tutti i warning
+# warnings.filterwarnings("ignore")
+
 # Inizializza l'app con un tema Bootstrap
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
 
