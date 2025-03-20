@@ -191,6 +191,7 @@ translations = {
          "dropdown_option_climate_change": "Climate Changes",
          "storic_data_button": "Historic Data",
          "deforestation_button": "Deforestation",
+         "compare_button": "Compare",          # <-- Nuova chiave
          "xaxis_title": "Longitude (°)",
          "yaxis_title": "Latitude (°)",
          "no_data_available": "No data available",
@@ -227,6 +228,7 @@ translations = {
          "dropdown_option_climate_change": "Changements Climatiques",
          "storic_data_button": "Données Historiques",
          "deforestation_button": "Déforestation",
+         "compare_button": "Comparer",         # <-- Nuova chiave
          "xaxis_title": "Longitude (°)",
          "yaxis_title": "Latitude (°)",
          "no_data_available": "Aucune donnée disponible",
@@ -249,48 +251,57 @@ translations = {
     }
 }
 
+
 # ====================================================
 # Layout con Sidebar Fissa e selezione della lingua
 # ====================================================
+
+
+
+
 app.layout = html.Div([
     # Sidebar fissa a sinistra
     html.Div(
-        [
-            html.H2("Menu", className="display-4", style={"color": "black", "textAlign": "center"}),
-            html.Hr(),
-            dbc.Button("Storic Data", id="storic-data-btn", n_clicks=0, color="secondary",
-                       className="mb-2", style={"width": "100%"}),
-            dbc.Button("Deforestation", id="deforestation-btn", n_clicks=0, color="secondary",
-                       style={"width": "100%"}),
-            # Dropdown per la lingua posizionato in basso (spostato più in alto rispetto al precedente)
-            html.Div(
-                [
-                    html.Label("Select Language:", id="language-label", className="fw-bold", style={"marginTop": "20px"}),
-                    dcc.Dropdown(
-                        id="language-dropdown",
-                        options=[
-                            {"label": "English", "value": "en"},
-                            {"label": "French", "value": "fr"}
-                        ],
-                        value="en",
-                        clearable=False,
-                        style={"width": "100%"}
-                    )
-                ],
-                style={"position": "absolute", "bottom": "80px", "left": "20px", "right": "20px"}
-            )
-        ],
-        style={
-            "position": "fixed",
-            "top": "0",
-            "left": "0",
-            "bottom": "0",
-            "width": "250px",
-            "padding": "20px",
-            "backgroundColor": "#dcdcdc",
-            "overflowY": "auto"
-        }
-    ),
+    [
+        html.H2("Menu", className="display-4", style={"color": "black", "textAlign": "center"}),
+        html.Hr(),
+        dbc.Button("Storic Data", id="storic-data-btn", n_clicks=0, color="secondary",
+                   className="mb-2", style={"width": "100%"}),
+        dbc.Button("Deforestation", id="deforestation-btn", n_clicks=0, color="secondary",
+                   className="mb-2", style={"width": "100%"}),  # Aggiunta la classe "mb-2"
+        dbc.Button("Compare", id="compare-btn", n_clicks=0, color="secondary",
+                   style={"width": "100%", "marginBottom": "20px"}),  # Pulsante Compare
+        # Dropdown per la lingua
+        html.Div(
+            [
+                html.Label("Select Language:", id="language-label", className="fw-bold", style={"marginTop": "20px"}),
+                dcc.Dropdown(
+                    id="language-dropdown",
+                    options=[
+                        {"label": "English", "value": "en"},
+                        {"label": "French", "value": "fr"}
+                    ],
+                    value="en",
+                    clearable=False,
+                    style={"width": "100%"}
+                )
+            ],
+            style={"position": "absolute", "bottom": "80px", "left": "20px", "right": "20px"}
+        )
+    ],
+    style={
+        "position": "fixed",
+        "top": "0",
+        "left": "0",
+        "bottom": "0",
+        "width": "250px",
+        "padding": "20px",
+        "backgroundColor": "#dcdcdc",
+        "overflowY": "auto"
+    }
+),
+
+
     # Contenuto principale (offset dalla sidebar)
     html.Div(
         dbc.Container([
@@ -748,11 +759,15 @@ def update_language(lang):
             translations[lang]["language_label"])
 @app.callback(
     [Output("storic-data-btn", "children"),
-     Output("deforestation-btn", "children")],
+     Output("deforestation-btn", "children"),
+     Output("compare-btn", "children")],
     Input("language-dropdown", "value")
 )
 def update_sidebar_buttons(lang):
-    return translations[lang]["storic_data_button"], translations[lang]["deforestation_button"]
+    return (translations[lang]["storic_data_button"],
+            translations[lang]["deforestation_button"],
+            translations[lang]["compare_button"])
+
 
 
 if __name__ == '__main__':
