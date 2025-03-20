@@ -13,6 +13,11 @@ import re
 import dash
 import dash_bootstrap_components as dbc
 
+import warnings
+
+# Ignora tutti i warning
+# warnings.filterwarnings("ignore")
+
 # Inizializza l'app con un tema Bootstrap
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
 
@@ -186,50 +191,64 @@ default_years = get_years_for_map_type(default_map_type)
 default_year = default_years[-1] if default_years else None  # Usa l'anno più recente come default
 
 # Layout dell'app
-app.layout = html.Div([
-    html.H1("Dashboard Dati Geografici Mauritania", style={'textAlign': 'center'}),
-    
-    # Menu a tendina
-    html.Div([
-        # Menu per tipo di mappa
-        html.Div([
-            html.Label("Seleziona tipo di dati:"),
-            dcc.Dropdown(
-                id='map-type-dropdown',
-                options=map_types,
-                value=default_map_type,
-                clearable=False
-            ),
-        ], style={'width': '48%', 'display': 'inline-block'}),
-        
-        # Menu per anno
-        html.Div([
-            html.Label("Seleziona anno:"),
-            dcc.Dropdown(
-                id='year-dropdown',
-                # Le opzioni verranno aggiornate dinamicamente
-                options=[{"label": str(year), "value": year} for year in default_years] if default_years else [],
-                value=default_year,
-                clearable=False,
-                disabled=not default_years
-            ),
-        ], style={'width': '48%', 'display': 'inline-block', 'float': 'right'}),
-    ], style={'padding': '20px'}),
-    
-    # Mappa centrale
-    html.Div([
-        dcc.Graph(
-            id='main-map',
-            style={'height': '70vh'}  # 70% dell'altezza della viewport
-        )
-    ], style={'padding': '10px'}),
-    
-    # Informazioni sulla mappa
-    html.Div([
-        html.H4("Informazioni", style={'marginBottom': '10px'}),
-        html.Div(id='map-info')
-    ], style={'padding': '20px'})
-])
+app.layout = dbc.Container([
+    dbc.Row([
+        dbc.Col(html.H1("Assaba Climatic Data", className="text-center text-primary mb-4"), width=12)
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    html.Label("Select Data Type:", className="fw-bold"),
+                    dcc.Dropdown(
+                        id='map-type-dropdown',
+                        options=map_types,
+                        value=default_map_type,
+                        clearable=False
+                    ),
+                ])
+            ], className="shadow-sm p-3"),
+        ], width=6),
+
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    html.Label("Select Year:", className="fw-bold"),
+                    dcc.Dropdown(
+                        id='year-dropdown',
+                        options=[{"label": str(year), "value": year} for year in default_years] if default_years else [],
+                        value=default_year,
+                        clearable=False,
+                        disabled=not default_years
+                    ),
+                ])
+            ], className="shadow-sm p-3"),
+        ], width=6),
+    ], className="mb-4"),
+
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    dcc.Graph(id='main-map', style={'height': '100%', 'width': '100%'})
+                ])
+            ], className="shadow-lg p-3", style={'max-width': '900px', 'margin': 'auto'}),
+        ], width=12)
+    ], className="mb-4"),
+
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    html.H4("Informazioni", className="text-primary"),
+                    html.Div(id='map-info')
+                ])
+            ], className="shadow-sm p-3"),
+        ], width=12)
+    ])
+], fluid=True)
+
 
 # Callback per aggiornare le opzioni dell'anno in base al tipo di mappa selezionato
 
@@ -398,11 +417,12 @@ def update_map(map_type, year):
             color=color_column,
             color_continuous_scale=px.colors.sequential.Viridis,
             mapbox_style="carto-positron",
-            zoom=5,
-            center={"lat": 20.5, "lon": -12.5},
+            zoom=6,  # Zoom maggiore per un focus migliore
+            center={"lat": 16.7, "lon": -11.5},  # Centra su Assaba
             opacity=0.7,
             labels={color_column: color_title}
         )
+
 
         ###print("✅ Mappa generata con successo!")
 
