@@ -456,6 +456,10 @@ def load_geotiff(tif_file):
                 raster_data[raster_data == -1] = np.nan 
                 raster_data = np.flipud(raster_data)
                 difference_data = np.flipud(difference_data)
+                
+            if "change_image" in os.path.basename(tif_file).lower():
+                raster_data[raster_data == -1] = np.nan 
+                raster_data = np.flipud(raster_data)
             if src.nodata is not None:
                 raster_data = raster_data.astype('float32')
                 raster_data[raster_data == src.nodata] = np.nan
@@ -625,6 +629,16 @@ def update_map(map_type, year, language):
             fig.add_trace(go.Heatmap(z=visualization_mask, x=lons, y=lats,
                                        colorscale=custom_colorscale, showscale=True,
                                        hoverinfo="text", text=hover_text, zmin=0, zmax=1))
+        elif map_type == "land_cover_change":
+            raster_data[raster_data == -1] = np.nan
+            custom_colorscale = [
+                [0.0, "red"],
+                [0.5, "lightgray"],
+                [1.0, "green"]
+            ]
+            fig.add_trace(go.Heatmap(z=raster_data, x=lons, y=lats,
+                            colorscale=custom_colorscale, showscale=True,
+                            zmin=0, zmax=1))
         else:
             fig.add_trace(go.Heatmap(z=raster_data, x=lons, y=lats,
                                        colorscale="Viridis", showscale=True,
