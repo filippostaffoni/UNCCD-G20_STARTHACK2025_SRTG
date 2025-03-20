@@ -102,12 +102,13 @@ def scan_directories_for_years():
 
         if not years:
             years.add("N/A")
-        if data_type not in ["deforestation", "climate_change"]:
+        if data_type not in ["deforestation", "climate_change", "land_cover_change"]:
             AVAILABLE_YEARS_BY_TYPE[data_type] = sorted(list(years))
         else:
             AVAILABLE_YEARS_BY_TYPE[data_type] = list(year_pairs)
 
 scan_directories_for_years()
+
 
 # ====================================================
 # Mapping dei tipi di dati e delle unità di misura
@@ -195,8 +196,9 @@ translations = {
          "dropdown_option_streams_roads": "Streams and Roads",
          "dropdown_option_deforestation": "Deforestation",
          "dropdown_option_climate_change": "Climate Changes",
+         "dropdown_option_land_cover": "Land Cover Change",
          "storic_data_button": "Historic Data",
-         "deforestation_button": "Deforestation",
+         "anomalies_button": "Anomalies",
          "xaxis_title": "Longitude (°)",
          "yaxis_title": "Latitude (°)",
          "no_data_available": "No data available",
@@ -231,8 +233,9 @@ translations = {
          "dropdown_option_streams_roads": "Cours d'Eau et Routes",
          "dropdown_option_deforestation": "Déforestation",
          "dropdown_option_climate_change": "Changements Climatiques",
+         "dropdown_option_land_cover":"Changement de Couverture Terrestre",
          "storic_data_button": "Données Historiques",
-         "deforestation_button": "Déforestation",
+         "anomaly_button": "Anomalie",
          "xaxis_title": "Longitude (°)",
          "yaxis_title": "Latitude (°)",
          "no_data_available": "Aucune donnée disponible",
@@ -266,7 +269,7 @@ app.layout = html.Div([
             html.Hr(),
             dbc.Button("Storic Data", id="storic-data-btn", n_clicks=0, color="secondary",
                        className="mb-2", style={"width": "100%"}),
-            dbc.Button("Deforestation", id="deforestation-btn", n_clicks=0, color="secondary",
+            dbc.Button("Anomalies", id="anomalies-btn", n_clicks=0, color="secondary",
                        style={"width": "100%"}),
             # Dropdown per la lingua posizionato in basso (spostato più in alto rispetto al precedente)
             html.Div(
@@ -435,17 +438,17 @@ def update_year_options(map_type, language):
      Output('map-type-dropdown', 'value'),
      Output('map-type-dropdown', 'disabled')],
     [Input('storic-data-btn', 'n_clicks'),
-     Input('deforestation-btn', 'n_clicks'),
+     Input('anomalies-btn', 'n_clicks'),
      Input('language-dropdown', 'value')]
 )
-def update_map_type_options(storic_clicks, deforestation_clicks, language):
+def update_map_type_options(storic_clicks, anomalies_clicks, language):
     ctx = dash.callback_context
     if not ctx.triggered:
         mode = 'storic_data'
     else:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-        if button_id == 'deforestation-btn':
-            mode = 'deforestation'
+        if button_id == 'anomalies-btn':
+            mode = 'anomalies'
         else:
             mode = 'storic_data'
             
@@ -464,7 +467,8 @@ def update_map_type_options(storic_clicks, deforestation_clicks, language):
     else:
         options = [
             {"label": translations[language]["dropdown_option_deforestation"], "value": "deforestation"},
-            {"label": translations[language]["dropdown_option_climate_change"], "value": "climate_change"}
+            {"label": translations[language]["dropdown_option_climate_change"], "value": "climate_change"},
+            {"label": translations[language]["dropdown_option_land_cover"], "value": "land_cover_change"}
         ]
         default = "deforestation"
         disabled = False
@@ -502,10 +506,13 @@ def load_geotiff(tif_file):
             else:
                 difference_data = np.full(raster_data.shape, np.nan)
             if "deforestation" in os.path.basename(tif_file).lower() or "climatechange" in os.path.basename(tif_file).lower():
-                print(f"🔍 Rilevato file di deforestazione: {tif_file}. Escludendo valori 255...")
                 raster_data[raster_data == -1] = np.nan 
                 raster_data = np.flipud(raster_data)
                 difference_data = np.flipud(difference_data)
+                
+            if "change_image" in os.path.basename(tif_file).lower():
+                raster_data[raster_data == -1] = np.nan 
+                raster_data = np.flipud(raster_data)
             if src.nodata is not None:
                 raster_data = raster_data.astype('float32')
                 raster_data[raster_data == src.nodata] = np.nan
@@ -675,6 +682,16 @@ def update_map(map_type, year, language):
             fig.add_trace(go.Heatmap(z=visualization_mask, x=lons, y=lats,
                                        colorscale=custom_colorscale, showscale=True,
                                        hoverinfo="text", text=hover_text, zmin=0, zmax=1))
+        elif map_type == "land_cover_change":
+            raster_data[raster_data == -1] = np.nan
+            custom_colorscale = [
+                [0.0, "red"],
+                [0.5, "lightgray"],
+                [1.0, "green"]
+            ]
+            fig.add_trace(go.Heatmap(z=raster_data, x=lons, y=lats,
+                            colorscale=custom_colorscale, showscale=True,
+                            zmin=0, zmax=1))
         else:
             fig.add_trace(go.Heatmap(z=raster_data, x=lons, y=lats,
                                        colorscale="Viridis", showscale=True,
@@ -820,11 +837,11 @@ def update_language(lang):
             translations[lang]["language_label"])
 @app.callback(
     [Output("storic-data-btn", "children"),
-     Output("deforestation-btn", "children")],
+     Output("anomalies-btn", "children")],
     Input("language-dropdown", "value")
 )
 def update_sidebar_buttons(lang):
-    return translations[lang]["storic_data_button"], translations[lang]["deforestation_button"]
+    return translations[lang]["storic_data_button"], translations[lang]["anomalies_button"]
 
 
 if __name__ == '__main__':
