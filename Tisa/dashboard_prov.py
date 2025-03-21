@@ -196,7 +196,7 @@ translations = {
          "dropdown_option_streams_roads": "Streams and Roads",
          "dropdown_option_deforestation": "Deforestation",
          "dropdown_option_climate_change": "Climate Changes",
-         "dropdown_option_land_cover": "Land Cover Change",
+         "dropdown_option_land_cover_change": "Land Cover Change",
          "storic_data_button": "Historic Data",
          "anomalies_button": "Anomalies",
          "xaxis_title": "Longitude (°)",
@@ -235,7 +235,7 @@ translations = {
          "dropdown_option_climate_change": "Changements Climatiques",
          "dropdown_option_land_cover":"Changement de Couverture Terrestre",
          "storic_data_button": "Données Historiques",
-         "anomaly_button": "Anomalie",
+         "anomalies_button": "Anomalie",
          "xaxis_title": "Longitude (°)",
          "yaxis_title": "Latitude (°)",
          "no_data_available": "Aucune donnée disponible",
@@ -271,6 +271,8 @@ app.layout = html.Div([
                        className="mb-2", style={"width": "100%"}),
             dbc.Button("Anomalies", id="anomalies-btn", n_clicks=0, color="secondary",
                        style={"width": "100%"}),
+            dbc.Button("Compare", id="compare-btn", n_clicks=0, color="secondary",
+                       style={"width": "100%", "marginTop": "8px"}),
             # Dropdown per la lingua posizionato in basso (spostato più in alto rispetto al precedente)
             html.Div(
                 [
@@ -409,8 +411,228 @@ app.layout = html.Div([
             "marginLeft": "270px",
             "padding": "20px"
         }
-    )
+    ),
+    # Compare View (nascosto di default)
+html.Div(
+    dbc.Container([
+        dbc.Row([
+            dbc.Col(html.H1("Compare Maps", className="text-center text-primary mb-4"), width=12)
+        ]),
+        dbc.Row([
+            dbc.Col([
+                html.Label("First Map Type"),
+                dcc.Dropdown(id="compare-map-type-1", clearable=False)
+            ], width=3),
+            dbc.Col([
+                html.Label("First Year"),
+                dcc.Dropdown(id="compare-year-1", clearable=False)
+            ], width=3),
+            dbc.Col([
+                html.Label("Second Map Type"),
+                dcc.Dropdown(id="compare-map-type-2", clearable=False)
+            ], width=3),
+            dbc.Col([
+                html.Label("Second Year"),
+                dcc.Dropdown(id="compare-year-2", clearable=False)
+            ], width=3),
+        ], className="mb-4"),
+        dbc.Row([
+            dbc.Col(dcc.Graph(id="compare-map-1"), width=6),
+            dbc.Col(dcc.Graph(id="compare-map-2"), width=6),
+        ])
+    ], fluid=True),
+    id="compare-container",
+    style={"display": "none", "marginLeft": "270px", "padding": "20px"}
+)
 ])
+
+@app.callback(
+    Output("compare-container", "style"),
+    Input("compare-btn", "n_clicks"),
+    prevent_initial_call=True
+)
+def toggle_compare(n_clicks):
+    if n_clicks and n_clicks % 2 == 1:
+        return {"display": "block", "marginLeft": "270px", "padding": "20px"}
+    else:
+        return {"display": "none", "marginLeft": "270px"}
+@app.callback(
+    [Output("compare-map-type-1", "options"),
+     Output("compare-map-type-2", "options")],
+    Input("language-dropdown", "value")
+)
+def populate_compare_dropdowns(lang):
+    all_options = [
+        {"label": translations[lang]["dropdown_option_climate_precipitations"], "value": "climate_precipitations"},
+        {"label": translations[lang]["dropdown_option_population_density"], "value": "population_density"},
+        {"label": translations[lang]["dropdown_option_gross_primary_production"], "value": "gross_primary_production"},
+        {"label": translations[lang]["dropdown_option_land_cover"], "value": "land_cover"},
+        {"label": translations[lang]["dropdown_option_deforestation"], "value": "deforestation"},
+        {"label": translations[lang]["dropdown_option_climate_change"], "value": "climate_change"},
+        {"label": translations[lang]["dropdown_option_land_cover"], "value": "land_cover_change"}
+    ]
+    return all_options, all_options
+
+@app.callback(
+    [Output("compare-year-1", "options"),
+     Output("compare-year-2", "options")],
+    [Input("compare-map-type-1", "value"),
+     Input("compare-map-type-2", "value")]
+)
+def populate_years_compare(type1, type2):
+    return (
+        [{"label": str(y), "value": y} for y in get_years_for_map_type(type1)],
+        [{"label": str(y), "value": y} for y in get_years_for_map_type(type2)]
+    )
+
+def generate_map_figure(map_type, year, language):
+    fig = go.Figure()
+    
+    if year is None:
+        fig.update_layout(
+            title=f"{translations[language]['no_data_available_for']} {map_type}",
+            annotations=[dict(
+                text=translations[language]["no_data_available"],
+                showarrow=False, x=0.5, y=0.5, xref="paper", yref="paper"
+            )]
+        )
+        return fig
+
+    data, error = load_data(map_type, year)
+    if error:
+        fig.update_layout(
+            title=f"{translations[language]['error']}: {error}",
+            annotations=[dict(
+                text=error,
+                showarrow=False, x=0.5, y=0.5, xref="paper", yref="paper"
+            )]
+        )
+        return fig
+
+    data_info = data_type_mapping.get(map_type)
+    if not data_info:
+        fig.update_layout(title=translations[language]["data_type_not_supported"])
+        return fig
+
+    if data_info["type"] == "shapefile":
+        gdf = data
+        if gdf is None or gdf.empty:
+            fig.update_layout(title=translations[language]["error_loading_shapefile"])
+            return fig
+
+        color_column = next((col for col in ['admin_level', 'level', 'type', 'class', 'category'] if col in gdf.columns), None)
+        if color_column is None:
+            gdf["index_col"] = gdf.index.astype(str)
+            color_column = "index_col"
+
+        fig = px.choropleth_mapbox(
+            gdf,
+            geojson=gdf.geometry.__geo_interface__,
+            locations=gdf.index,
+            color=color_column,
+            color_continuous_scale=px.colors.sequential.Viridis,
+            mapbox_style="carto-positron",
+            zoom=6,
+            center={"lat": 16.7, "lon": -11.5},
+            opacity=0.7,
+            labels={color_column: color_column.replace("_", " ").title()}
+        )
+
+    elif data_info["type"] == "geotiff":
+        raster_data = data.get("data")
+        bounds = data.get("bounds", (-17.0, 16.0, -8.0, 26.0))
+        minx, miny, maxx, maxy = bounds
+        height, width = raster_data.shape
+        lons = np.linspace(minx, maxx, width)
+        lats = np.linspace(maxy, miny, height)
+
+        if map_type == "gross_primary_production":
+            bp = [0, 150, 300, 450, 600, 750, 900, 1100, 1500, 4000, 60000]
+            normalized_ticks = np.linspace(0, 1, len(bp))
+            normalized_data = np.interp(raster_data, bp, normalized_ticks)
+            colorbar = dict(
+                tickmode="array",
+                tickvals=list(normalized_ticks),
+                ticktext=[str(v) for v in bp],
+                title=units_mapping.get(map_type, "")
+            )
+            fig.add_trace(go.Heatmap(
+                z=normalized_data, x=lons, y=lats,
+                colorscale="Viridis", showscale=True,
+                zmin=0, zmax=1,
+                colorbar=colorbar
+            ))
+
+        elif map_type in ["deforestation", "climate_change"]:
+            diff_data = data.get("difference")
+            visualization_mask = np.full_like(diff_data, np.nan)
+            visualization_mask[(raster_data == 1) & (diff_data < 0)] = 0
+            visualization_mask[(raster_data == 1) & (diff_data > 0)] = 1
+            visualization_mask[raster_data == 0] = 0.5
+
+            hover_text = np.array([
+                [
+                    f"Value: {int(raster_data[i, j]) if not np.isnan(raster_data[i, j]) else 'N/A'}<br>"
+                    f"Diff: {diff_data[i, j]:.2f}" if not np.isnan(diff_data[i, j]) else "N/A"
+                    for j in range(width)
+                ]
+                for i in range(height)
+            ])
+
+            fig.add_trace(go.Heatmap(
+                z=visualization_mask, x=lons, y=lats,
+                colorscale=[[0.0, "red"], [0.5, "lightgray"], [1.0, "green"]],
+                showscale=True,
+                hoverinfo="text",
+                text=hover_text,
+                zmin=0, zmax=1
+            ))
+
+        elif map_type == "land_cover_change":
+            raster_data[raster_data == -1] = np.nan
+            fig.add_trace(go.Heatmap(
+                z=raster_data, x=lons, y=lats,
+                colorscale=[[0.0, "red"], [0.5, "lightgray"], [1.0, "green"]],
+                showscale=True,
+                zmin=0, zmax=1
+            ))
+
+        else:
+            fig.add_trace(go.Heatmap(
+                z=raster_data,
+                x=lons,
+                y=lats,
+                colorscale="Viridis",
+                showscale=True,
+                colorbar=dict(title=units_mapping.get(map_type, ""))
+            ))
+
+        fig.update_layout(
+            title=f"{map_type.replace('_', ' ').title()} - {year}",
+            xaxis=dict(title=translations[language]["xaxis_title"]),
+            yaxis=dict(title=translations[language]["yaxis_title"], scaleanchor="x", scaleratio=1),
+            autosize=True,
+            height=500,
+            margin={"r": 10, "t": 50, "l": 10, "b": 10}
+        )
+
+    return fig
+
+@app.callback(
+    [Output("compare-map-1", "figure"),
+     Output("compare-map-2", "figure")],
+    [Input("compare-map-type-1", "value"),
+     Input("compare-year-1", "value"),
+     Input("compare-map-type-2", "value"),
+     Input("compare-year-2", "value"),
+     Input("language-dropdown", "value")]
+)
+def update_compare_maps(type1, year1, type2, year2, language):
+    return (
+        generate_map_figure(type1, year1, language),
+        generate_map_figure(type2, year2, language)
+    )
+
 
 # ====================================================
 # Callback per aggiornare "Select Year" in base al Data Type
@@ -705,14 +927,15 @@ def update_map(map_type, year, language):
             height=700,
             margin={"r": 10, "t": 50, "l": 10, "b": 10}
         )
+        masked_data = np.where(raster_data == 65533, np.nan, raster_data)
         # Informazioni tradotte
         info = [
            html.P([
-                html.Span(f"{translations[language]['minimum_value']}: {np.nanmin(raster_data):.2f}"),
+                html.Span(f"{translations[language]['minimum_value']}: {np.nanmin(masked_data):.2f}"),
                 html.Span("  |  "),
-                html.Span(f"{translations[language]['maximum_value']}: {np.nanmax(raster_data):.2f}"),
+                html.Span(f"{translations[language]['maximum_value']}: {np.nanmax(masked_data):.2f}"),
                 html.Span("  |  "),
-                html.Span(f"{translations[language]['average_value']}: {np.nanmean(raster_data):.2f}")
+                html.Span(f"{translations[language]['average_value']}: {np.nanmean(masked_data):.2f}")
             ])
         ]
     
