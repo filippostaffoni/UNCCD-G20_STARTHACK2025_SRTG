@@ -233,7 +233,7 @@ translations = {
          "dropdown_option_streams_roads": "Cours d'Eau et Routes",
          "dropdown_option_deforestation": "Déforestation",
          "dropdown_option_climate_change": "Changements Climatiques",
-         "dropdown_option_land_cover":"Changement de Couverture Terrestre",
+         "dropdown_option_land_cover_change":"Changement de Couverture Terrestre",
          "storic_data_button": "Données Historiques",
          "anomalies_button": "Anomalie",
          "xaxis_title": "Longitude (°)",
@@ -469,7 +469,7 @@ def populate_compare_dropdowns(lang):
         {"label": translations[lang]["dropdown_option_land_cover"], "value": "land_cover"},
         {"label": translations[lang]["dropdown_option_deforestation"], "value": "deforestation"},
         {"label": translations[lang]["dropdown_option_climate_change"], "value": "climate_change"},
-        {"label": translations[lang]["dropdown_option_land_cover"], "value": "land_cover_change"}
+        {"label": translations[lang]["dropdown_option_land_cover_change"], "value": "land_cover_change"}
     ]
     return all_options, all_options
 
