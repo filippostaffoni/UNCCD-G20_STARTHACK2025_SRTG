@@ -46,12 +46,6 @@ DATA_DIRS = {
     "land_cover_change": LANDCOVERCHANGE_DIR
 }
 
-# Caricamento dati prezzi Assaba
-PRICE_DATA_PATH = "./Datasets_Hackathon/confronto_barkeol_kankossa.csv"
-price_df = pd.read_csv(PRICE_DATA_PATH)
-price_df['date'] = pd.to_datetime(price_df['date'])
-
-
 # ====================================================
 # Configurazione degli anni per ciascun tipo di mappa
 # ====================================================
@@ -199,6 +193,7 @@ translations = {
          "dropdown_option_land_cover_change": "Land Cover Change",
          "storic_data_button": "Historic Data",
          "anomalies_button": "Anomalies",
+         "compare_button": "Compare",          # <-- Nuova chiave
          "xaxis_title": "Longitude (°)",
          "yaxis_title": "Latitude (°)",
          "no_data_available": "No data available",
@@ -258,9 +253,14 @@ translations = {
     }
 }
 
+
 # ====================================================
 # Layout con Sidebar Fissa e selezione della lingua
 # ====================================================
+
+
+
+
 app.layout = html.Div([
     # Sidebar fissa a sinistra
     html.Div(
@@ -337,7 +337,7 @@ app.layout = html.Div([
                 dbc.Col([
                     dbc.Card([
                         dbc.CardBody([
-                            dcc.Graph(id='main-map', style={'height': '100%', 'width': '100%'}, config={'editable': True, 'scrollZoom': True})
+                            dcc.Graph(id='main-map', style={'height': '100%', 'width': '100%'})
                         ])
                     ], className="shadow-lg p-3"),
                 ], width=6),
@@ -984,8 +984,6 @@ def update_historical_plot(clickData, map_type, current_year, language):
         raster = data
         raster_data = raster.get('data')
         transform = raster.get('transform')
-        if map_type in ["deforestation", "climate_change"]:
-            diff = raster.get('difference')
         try:
             col, row = ~transform * (lon, lat)
             col = int(round(col))
@@ -993,10 +991,7 @@ def update_historical_plot(clickData, map_type, current_year, language):
             if row < 0 or row >= raster_data.shape[0] or col < 0 or col >= raster_data.shape[1]:
                 pixel_value = np.nan
             else:
-                if map_type in ["deforestation", "climate_change"]:
-                    pixel_value = diff[row,col]
-                else:
-                    pixel_value = raster_data[row, col]
+                pixel_value = raster_data[row, col]
         except Exception as e:
             pixel_value = np.nan
         values.append(pixel_value)
@@ -1028,25 +1023,6 @@ def update_historical_plot(clickData, map_type, current_year, language):
     return fig
 
 # ====================================================
-# Callback per aggiornare il grafico dei prezzi
-# ====================================================
-
-@app.callback(
-    Output('price-trend-graph', 'figure'),
-    [Input('region-dropdown', 'value'),
-     Input('commodity-dropdown', 'value')]
-)
-
-def update_price_graph(selected_region, selected_commodity):
-    filtered_df = price_df[(price_df['admin2'] == selected_region) & (price_df['commodity'] == selected_commodity)]
-    fig = px.line(filtered_df, x='date', y='usdprice',
-                  title=f'Price trend of {selected_commodity} - {selected_region}',
-                  labels={'usdprice': 'Price (USD)', 'date': 'Data'})
-    fig.update_layout(autosize=True, margin={"r":10,"t":50,"l":10,"b":10})
-    return fig
-
-
-# ====================================================
 # Callback per aggiornare le scritte in base alla lingua scelta
 # ====================================================
 @app.callback(
@@ -1065,11 +1041,15 @@ def update_language(lang):
             translations[lang]["language_label"])
 @app.callback(
     [Output("storic-data-btn", "children"),
-     Output("anomalies-btn", "children")],
+     Output("anomalies-btn", "children"),
+     Output("compare-btn", "children")],
     Input("language-dropdown", "value")
 )
 def update_sidebar_buttons(lang):
-    return translations[lang]["storic_data_button"], translations[lang]["anomalies_button"]
+    return (translations[lang]["storic_data_button"],
+            translations[lang]["anomalies_button"],
+            translations[lang]["compare_button"])
+
 
 
 if __name__ == '__main__':
